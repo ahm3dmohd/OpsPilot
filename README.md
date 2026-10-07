@@ -18,7 +18,7 @@ dashboard, etc).
 
 ## Stack
 
-Node.js, Express, EJS, MongoDB Atlas (Vector Search, from Week 3 onward),
+Node.js, Express, EJS, MongoDB (plain - similarity is computed in app code),
 an LLM API for embeddings. One process, server-rendered pages - no
 separate frontend to run.
 
