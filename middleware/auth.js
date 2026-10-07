@@ -17,4 +17,11 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireLogin, requireRole };
+// Express 4 doesn't catch errors thrown by async route handlers - without
+// this, a failed DB call leaves the request hanging. Wrap every async
+// handler so errors reach the error page in server.js.
+function asyncHandler(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+
+module.exports = { requireLogin, requireRole, asyncHandler };

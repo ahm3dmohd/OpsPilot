@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-
-const ROLES = ['end_user', 'agent', 'manager'];
+const { ROLES } = require('../lib/constants');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -9,7 +8,5 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ROLES, required: true, default: 'end_user' },
   createdAt: { type: Date, default: Date.now },
 });
-
-userSchema.statics.ROLES = ROLES;
 
 module.exports = mongoose.model('User', userSchema);

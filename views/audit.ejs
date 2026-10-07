@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Audit log' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container">
+    <h1>Audit log</h1>
+    <% if (integrity.ok) { %>
+      <p class="ok-text">Hash chain intact &mdash; <%= integrity.count %> entries verified, none edited or removed.</p>
+    <% } else { %>
+      <p class="error">Hash chain BROKEN at entry #<%= integrity.brokenAt %> &mdash; that entry (or one before it) was changed or deleted.</p>
+    <% } %>
+    <p class="muted small">Latest 200 entries, newest first. Each entry's hash covers the previous one, so tampering with history is detectable.</p>
+    <% if (entries.length === 0) { %>
+      <p class="muted">No actions logged yet.</p>
+    <% } else { %>
+      <table class="ticket-table audit-table">
+        <thead><tr><th>#</th><th>When</th><th>Who</th><th>Action</th><th>Detail</th><th>Hash</th></tr></thead>
+        <tbody>
+          <% entries.forEach(function(e) { %>
+            <tr>
+              <td><%= e.seq %></td>
+              <td class="small"><%= new Date(e.createdAt).toLocaleString() %></td>
+              <td class="small"><%= e.actorEmail %></td>
+              <td><code><%= e.action %></code></td>
+              <td class="small"><code><%= JSON.stringify(e.detail) %></code></td>
+              <td class="small muted"><code><%= e.hash.slice(0, 10) %>&hellip;</code></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+</body>
+</html>

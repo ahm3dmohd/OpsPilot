@@ -21,7 +21,7 @@
         <tbody>
           <% tickets.forEach(function(t) { %>
             <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><%= t.ticketId %></td>
+              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
               <td><%= t.title %></td>
               <td><%= t.category %></td>
               <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
@@ -32,5 +32,6 @@
       </table>
     <% } %>
   </main>
+  <%- include('partials/help-widget') %>
 </body>
 </html>

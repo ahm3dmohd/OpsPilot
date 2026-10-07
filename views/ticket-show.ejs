@@ -8,6 +8,11 @@
   <main class="container narrow">
     <p class="muted"><a href="/dashboard">&larr; Back to dashboard</a></p>
 
+    <% const flashes = { already_claimed: 'Someone else claimed this ticket first.', bad_transition: 'That status change isn\'t allowed from the current status.', changed: 'The ticket changed while you were looking at it - check the new status and try again.' }; %>
+    <% if (flash && flashes[flash]) { %>
+      <p class="error"><%= flashes[flash] %></p>
+    <% } %>
+
     <div class="page-header">
       <h1><%= ticket.ticketId %>: <%= ticket.title %></h1>
     </div>
@@ -15,57 +20,135 @@
     <div class="ticket-meta">
       <span class="pill pill-priority-<%= ticket.priority.toLowerCase() %>"><%= ticket.priority %></span>
       <span class="pill pill-status-<%= ticket.status.replace(' ', '-').toLowerCase() %>"><%= ticket.status %></span>
+      <%- include('partials/sla-pill', { sla }) %>
       <span class="muted"><%= ticket.category %></span>
     </div>
 
-    <p><%= ticket.description %></p>
+    <p class="description"><%= ticket.description %></p>
 
     <p class="muted small">
-      Requested by <%= ticket.requesterName %>
+      Requested by <%= ticket.requesterName %> &middot; <%= new Date(ticket.createdAt).toLocaleString() %>
       <% if (ticket.assigneeName) { %> &middot; Assigned to <%= ticket.assigneeName %><% } %>
     </p>
 
-    <% if (currentUser.role === 'agent') { %>
+    <div class="panel sla-panel">
+      <div>
+        <div class="small muted">First response</div>
+        <div><%= sla.firstResponse.running ? (sla.firstResponse.remainingHours >= 0 ? sla.firstResponse.remainingHours + 'h left' : Math.abs(sla.firstResponse.remainingHours) + 'h overdue') : (sla.firstResponse.state === 'met' ? 'Met' : 'Missed') %></div>
+        <div class="small muted">target <%= sla.firstResponse.targetHours %>h</div>
+      </div>
+      <div>
+        <div class="small muted">Resolution</div>
+        <div><%= sla.resolution.running ? (sla.resolution.remainingHours >= 0 ? sla.resolution.remainingHours + 'h left' : Math.abs(sla.resolution.remainingHours) + 'h overdue') : (sla.resolution.state === 'met' ? 'Met' : 'Missed') %></div>
+        <div class="small muted">target <%= sla.resolution.targetHours %>h</div>
+      </div>
+      <div>
+        <div class="small muted">Time in status</div>
+        <div class="small"><% Object.keys(timeInStatus).filter(function(s) { return timeInStatus[s] > 0; }).forEach(function(s) { %><%= s %>: <%= timeInStatus[s] %>h<br><% }) %></div>
+      </div>
+    </div>
+
+    <% if (currentUser.role === 'agent' && !ticket.assigneeEmail) { %>
       <div class="actions">
-        <% if (!ticket.assigneeEmail) { %>
-          <form action="/tickets/<%= ticket.ticketId %>/claim" method="POST">
-            <button type="submit">Claim this ticket</button>
-          </form>
-        <% } %>
+        <form action="/tickets/<%= ticket.ticketId %>/claim" method="POST">
+          <button type="submit">Claim this ticket</button>
+        </form>
       </div>
     <% } %>
 
-    <% if (currentUser.role === 'agent' || currentUser.role === 'manager') { %>
-      <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="inline-form">
-        <label>Change status
-          <select name="status">
-            <% STATUSES.forEach(function(s) { %>
-              <option value="<%= s %>" <%= s === ticket.status ? 'selected' : '' %>><%= s %></option>
+    <% if (suggestedAssignee) { %>
+      <p class="small muted">Suggested assignee (lowest workload): <strong><%= suggestedAssignee.name %></strong>, <%= suggestedAssignee.active %> active ticket<%= suggestedAssignee.active === 1 ? '' : 's' %>.</p>
+    <% } %>
+
+    <% if (agents.length) { %>
+      <form action="/tickets/<%= ticket.ticketId %>/assign" method="POST" class="inline-form">
+        <label>Assign to
+          <select name="agentEmail">
+            <% agents.forEach(function(a, i) { %>
+              <option value="<%= a.email %>" <%= i === 0 ? 'selected' : '' %>><%= a.name %> (<%= a.active %> active)</option>
             <% }) %>
           </select>
         </label>
-        <button type="submit">Update</button>
+        <button type="submit">Assign</button>
       </form>
     <% } %>
 
-    <h2 class="mt">Activity</h2>
-    <% if (ticket.comments.length === 0) { %>
-      <p class="muted">No comments yet.</p>
-    <% } else { %>
-      <ul class="comment-list">
-        <% ticket.comments.forEach(function(c) { %>
-          <li>
-            <strong><%= c.authorName %></strong>
-            <span class="muted small"><%= new Date(c.createdAt).toLocaleString() %></span>
-            <p><%= c.body %></p>
-          </li>
-        <% }) %>
-      </ul>
+    <% if ((currentUser.role === 'agent' || currentUser.role === 'manager') && nextStatuses.length) { %>
+      <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="inline-form">
+        <label>Move to
+          <select name="status">
+            <% nextStatuses.forEach(function(s) { %>
+              <option value="<%= s %>"><%= s %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button type="submit">Update status</button>
+      </form>
     <% } %>
+
+    <% if (showDuplicates) { %>
+      <section id="duplicates" class="panel mt">
+        <div class="page-header">
+          <h2>Possible duplicates</h2>
+          <form action="/tickets/<%= ticket.ticketId %>/duplicates" method="POST">
+            <button type="submit" class="secondary small-button">Re-run check</button>
+          </form>
+        </div>
+        <% if (!ticket.duplicates) { %>
+          <p class="muted small">Not checked yet.</p>
+        <% } else { %>
+          <p class="muted small">Two independent methods, shown side by side for comparison. Checked against <%= ticket.duplicates.comparedAgainst %> other tickets on <%= new Date(ticket.duplicates.baseline.ranAt).toLocaleString() %>.</p>
+          <div class="two-col dup-cols">
+            <% [['AI (embeddings + cosine)', ticket.duplicates.ai], ['Baseline (keywords + Jaccard)', ticket.duplicates.baseline]].forEach(function(pair) { var r = pair[1]; %>
+              <div>
+                <h3><%= pair[0] %></h3>
+                <p class="small muted">
+                  threshold <%= r.threshold %><% if (r.model) { %> &middot; <%= r.model %><% } %>
+                </p>
+                <% if (r.status !== 'ok') { %>
+                  <p class="small muted"><%= r.status === 'error' ? 'Failed (AI service error)' : 'Skipped' %>: <%= r.reason %></p>
+                <% } else if (r.matches.length === 0) { %>
+                  <p class="small muted">No matches above threshold.</p>
+                <% } else { %>
+                  <ul class="dup-list">
+                    <% r.matches.forEach(function(m) { %>
+                      <li>
+                        <a href="/tickets/<%= m.ticketId %>"><%= m.ticketId %></a> <%= m.title %>
+                        <span class="score"><%= m.score.toFixed(2) %></span>
+                        <span class="small muted"><%= m.status %></span>
+                      </li>
+                    <% }) %>
+                  </ul>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+    <% } %>
+
+    <h2 class="mt" id="activity">Activity</h2>
+    <% const events = []
+         .concat((ticket.statusHistory || []).map(function(h) { return { at: h.at, status: h.status, by: h.byEmail }; }))
+         .concat(ticket.comments.map(function(c) { return { at: c.createdAt, comment: c }; }))
+         .sort(function(a, b) { return new Date(a.at) - new Date(b.at); }); %>
+    <ul class="comment-list">
+      <% events.forEach(function(e) { %>
+        <li>
+          <% if (e.comment) { %>
+            <strong><%= e.comment.authorName %></strong>
+            <span class="muted small"><%= new Date(e.at).toLocaleString() %></span>
+            <p><%= e.comment.body %></p>
+          <% } else { %>
+            <span class="muted small"><%= new Date(e.at).toLocaleString() %> &middot; status set to <strong><%= e.status %></strong></span>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
 
     <form action="/tickets/<%= ticket.ticketId %>/comment" method="POST" class="auth-form">
       <label>Add a comment
-        <textarea name="body" rows="3" required></textarea>
+        <textarea name="body" rows="3" required maxlength="5000"></textarea>
       </label>
       <button type="submit">Post comment</button>
     </form>

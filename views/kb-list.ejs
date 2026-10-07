@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Knowledge base' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container">
+    <div class="page-header">
+      <h1>Knowledge base</h1>
+      <% if (currentUser.role !== 'end_user') { %>
+        <a href="/kb/new" class="button">+ New article</a>
+      <% } %>
+    </div>
+    <% if (flash === 'deleted') { %><p class="ok-text">Article deleted.</p><% } %>
+    <form action="/kb" method="GET" class="inline-form">
+      <input type="text" name="q" value="<%= q %>" maxlength="200" placeholder="Search articles" class="grow" />
+      <button type="submit">Search</button>
+      <% if (q) { %><a href="/kb" class="small muted">Clear</a><% } %>
+    </form>
+    <% if (articles.length === 0) { %>
+      <p class="muted mt"><%= q ? 'No articles match that search.' : 'No articles yet.' %></p>
+    <% } else { %>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>ID</th><th>Title</th><th>Category</th>
+            <% if (currentUser.role !== 'end_user') { %><th>Views</th><th>Helpful</th><% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% articles.forEach(function(a) { var votes = a.helpful + a.notHelpful; %>
+            <tr onclick="location.href='/kb/<%= a.articleId %>'">
+              <td><a href="/kb/<%= a.articleId %>"><%= a.articleId %></a></td>
+              <td><%= a.title %></td>
+              <td><%= a.category %></td>
+              <% if (currentUser.role !== 'end_user') { %>
+                <td><%= a.views %></td>
+                <td><%= votes ? Math.round(a.helpful / votes * 100) + '% of ' + votes : '—' %></td>
+              <% } %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+  <% if (currentUser.role === 'end_user') { %><%- include('partials/help-widget') %><% } %>
+</body>
+</html>

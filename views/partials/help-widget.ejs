@@ -1,0 +1,70 @@
+<%# Floating self-service help widget for end users. Uses /help/ask (JSON);
+    the /help page is the no-JavaScript fallback. %>
+<div class="help-widget" id="helpWidget">
+  <button type="button" class="help-toggle" id="helpToggle" aria-expanded="false">Need help?</button>
+  <div class="help-panel" id="helpPanel" hidden>
+    <p class="small muted">Describe the problem - I'll check the knowledge base and your open tickets first.</p>
+    <form id="helpForm" action="/help" method="GET">
+      <input type="text" name="q" id="helpQ" placeholder="e.g. my VPN keeps disconnecting" maxlength="500" required />
+      <button type="submit">Ask</button>
+    </form>
+    <div id="helpResults" aria-live="polite"></div>
+  </div>
+</div>
+<script>
+  (function () {
+    var toggle = document.getElementById('helpToggle');
+    var panel = document.getElementById('helpPanel');
+    var form = document.getElementById('helpForm');
+    var out = document.getElementById('helpResults');
+    toggle.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden) document.getElementById('helpQ').focus();
+    });
+    function el(tag, text, cls) {
+      var e = document.createElement(tag);
+      if (text) e.textContent = text; // textContent: never inject HTML
+      if (cls) e.className = cls;
+      return e;
+    }
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      out.textContent = 'Searching...';
+      fetch('/help/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: document.getElementById('helpQ').value }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          out.textContent = '';
+          if (data.ownTickets.length) {
+            out.appendChild(el('p', 'You already have a ticket that looks related:', 'small'));
+            data.ownTickets.forEach(function (t) {
+              var a = el('a', t.ticketId + ': ' + t.title + ' (' + t.status + ')');
+              a.href = '/tickets/' + encodeURIComponent(t.ticketId);
+              var p = el('p', '', 'small'); p.appendChild(a); out.appendChild(p);
+            });
+          }
+          if (data.articles.length) {
+            data.articles.forEach(function (a) {
+              var box = el('div', '', 'help-article');
+              var title = el('a', a.title);
+              title.href = '/kb/' + encodeURIComponent(a.articleId);
+              var strong = el('strong'); strong.appendChild(title);
+              box.appendChild(strong);
+              box.appendChild(el('p', a.body, 'small'));
+              out.appendChild(box);
+            });
+          } else {
+            out.appendChild(el('p', 'No matching help article.', 'small muted'));
+          }
+          var link = el('a', 'Still stuck? File a ticket', 'button small-button');
+          link.href = '/tickets/new';
+          out.appendChild(link);
+        })
+        .catch(function () { out.textContent = 'Help is unavailable right now - you can still file a ticket.'; });
+    });
+  })();
+</script>

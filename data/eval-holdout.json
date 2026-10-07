@@ -1,0 +1,14 @@
+[
+  {"title":"Remote access tunnel cuts out","description":"Working from home, the company remote access connection drops out every so often and I lose access to internal sites until I log in again.","expectedCluster":"vpn"},
+  {"title":"GlobalProtect disconnecting all afternoon","description":"The secure connection client kicks me off roughly twice an hour. I have to sign back in each time.","expectedCluster":"vpn"},
+  {"title":"Locked out after too many attempts","description":"I typed my password wrong a few times and now Windows says my account is locked. I can't get into anything.","expectedCluster":"lockout"},
+  {"title":"Password expired and I can't change it","description":"Got a message that my password expired, but the change password screen rejects everything and now I can't sign in.","expectedCluster":"lockout"},
+  {"title":"Can't print to the 2nd floor HP","description":"Print jobs just sit in the queue and the HP printer by the kitchen shows as unavailable on my machine.","expectedCluster":"printer"},
+  {"title":"Computer takes forever to open apps","description":"My work notebook has become sluggish, Excel takes over a minute to open and the fan runs constantly.","expectedCluster":"slow-laptop"},
+  {"title":"Phone not getting work emails","description":"The mail app on my iPhone stopped receiving new messages yesterday, but webmail on my desktop shows them fine.","expectedCluster":"email-sync"},
+  {"title":"Need a Visio license","description":"Our team needs access to Microsoft Visio for process diagrams, can we get one more seat purchased?","expectedCluster":"license"},
+  {"title":"Keyboard missing keys","description":"Two keys came off my keyboard, I need a replacement keyboard for my desk.","expectedCluster":null},
+  {"title":"Wifi in meeting room 4 is very weak","description":"Signal in meeting room 4 is barely one bar and video calls keep freezing there. Other rooms are fine.","expectedCluster":null},
+  {"title":"Request access to finance shared folder","description":"I moved to the finance team and need read/write access to the Finance shared folder on the file server.","expectedCluster":null},
+  {"title":"Teams calls have echo","description":"Everyone hears an echo of themselves when I'm on Teams calls using my laptop speakers.","expectedCluster":null}
+]

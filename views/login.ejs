@@ -14,7 +14,7 @@
 
     <form action="/login" method="POST" class="auth-form">
       <label>Email
-        <input type="email" name="email" required autofocus />
+        <input type="email" name="email" required autofocus value="<%= email %>" />
       </label>
       <label>Password
         <input type="password" name="password" required />
@@ -25,10 +25,11 @@
     <p class="muted">No account? <a href="/register">Register</a></p>
 
     <div class="demo-box">
-      <strong>Demo logins</strong> (password: <code>password123</code>)
+      <strong>Demo logins</strong> (password: <code>password123</code>, mock mode or after <code>npm run seed</code>)
       <ul>
         <li>enduser@opspilot.test &mdash; End User</li>
         <li>agent@opspilot.test &mdash; Agent</li>
+        <li>agent2@opspilot.test &mdash; Agent</li>
         <li>manager@opspilot.test &mdash; Manager</li>
       </ul>
     </div>

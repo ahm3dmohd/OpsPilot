@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'AI evaluation' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <% const pct = function(x) { return Math.round(x * 100) + '%'; }; %>
+  <main class="container">
+    <h1>Duplicate detection: AI vs. baseline</h1>
+    <p class="muted">Both methods scored against tickets whose correct answers are known in advance. Same computation as <code>npm run evaluate</code>. Uses the fixed seed and held-out sets, not live tickets, so the numbers don't drift as the app is used.</p>
+    <% if (r.aiStatus.status !== 'ok') { %>
+      <p class="error">AI method not evaluated: <%= r.aiStatus.reason %>. Baseline only.</p>
+    <% } %>
+
+    <h2 class="mt">Held-out test <span class="muted small">(the fair numbers - thresholds were never tuned on these)</span></h2>
+    <p class="muted small"><%= r.holdout.length %> new tickets, each compared against the <%= r.seedCount %> seed tickets at fixed thresholds.</p>
+    <div class="stat-grid">
+      <% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %>
+        <div class="stat-card">
+          <div class="stat-label"><%= h.name %> @ <%= h.threshold %></div>
+          <div class="stat-number"><%= h.at.f1.toFixed(2) %></div>
+          <div class="stat-label">F1 &middot; precision <%= pct(h.at.precision) %> &middot; recall <%= pct(h.at.recall) %></div>
+          <div class="stat-label">top match right <%= h.topRight %>/<%= h.withCluster %> &middot; false alarms <%= h.falseAlarms %>/<%= h.noCluster %></div>
+        </div>
+      <% }) %>
+    </div>
+    <table class="ticket-table eval-table">
+      <thead><tr><th>Held-out ticket</th><th>Expected</th><% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %><th><%= h.name %></th><% }) %></tr></thead>
+      <tbody>
+        <% r.holdout.forEach(function(h, i) { %>
+          <tr>
+            <td><%= h.title %></td>
+            <td><%= h.expectedCluster || '(none)' %></td>
+            <% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(m) { var f = m.perTicket[i]; %>
+              <td class="small">
+                <% if (!f.length) { %><span class="muted">no matches</span><% } %>
+                <% f.forEach(function(x) { %>
+                  <span class="<%= x.truth ? 'ok-text' : 'error' %>"><%= x.ticketId %> <%= x.score.toFixed(2) %><%= x.truth ? '' : ' ✗' %></span><br>
+                <% }) %>
+              </td>
+            <% }) %>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <h2 class="mt">Seed set <span class="muted small">(thresholds tuned here, so optimistic)</span></h2>
+    <p class="muted small"><%= r.seedCount %> tickets, <%= r.pairCount %> pairs, <%= r.truePairs %> true duplicate pairs (same cluster label).</p>
+    <div class="two-col">
+      <% [r.seed.ai, r.seed.baseline].filter(Boolean).forEach(function(s) { %>
+        <div>
+          <h3><%= s.name %></h3>
+          <p class="small">At <strong><%= s.threshold %></strong>: precision <%= pct(s.at.precision) %>, recall <%= pct(s.at.recall) %>, F1 <%= s.at.f1.toFixed(2) %> (TP <%= s.at.tp %>, FP <%= s.at.fp %>, FN <%= s.at.fn %>)</p>
+          <table class="ticket-table eval-table">
+            <thead><tr><th>Threshold</th><th>P</th><th>R</th><th>F1</th></tr></thead>
+            <tbody>
+              <% s.sweep.forEach(function(m) { %>
+                <tr class="<%= m.threshold === s.threshold ? 'current' : '' %>"><td><%= m.threshold.toFixed(2) %></td><td><%= pct(m.precision) %></td><td><%= pct(m.recall) %></td><td><%= m.f1.toFixed(2) %></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+          <p class="small muted mt">Closest non-duplicates:</p>
+          <ul class="small">
+            <% s.closestFalse.slice(0, 3).forEach(function(p) { %><li><%= p.score.toFixed(3) %> &middot; <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
+          </ul>
+          <p class="small muted">Hardest true duplicates:</p>
+          <ul class="small">
+            <% s.weakestTrue.slice(0, 3).forEach(function(p) { %><li><%= p.score.toFixed(3) %> &middot; <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
+          </ul>
+        </div>
+      <% }) %>
+    </div>
+
+    <h2 class="mt">Caveats</h2>
+    <ul class="small">
+      <li>20 tickets is a small, hand-made set: a sanity check of the approach, not a general accuracy claim.</li>
+      <li>Quote the held-out numbers. The seed-set numbers come from thresholds tuned on that same set.</li>
+      <li>Held-out tickets were written by the same author as the seed set; tickets written by someone else would be a stronger test.</li>
+    </ul>
+  </main>
+</body>
+</html>

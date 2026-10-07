@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Notifications' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <div class="page-header">
+      <h1>Notifications</h1>
+      <% if (notifications.some(function(n) { return !n.read; })) { %>
+        <form action="/notifications/read-all" method="POST">
+          <button type="submit" class="secondary small-button">Mark all read</button>
+        </form>
+      <% } %>
+    </div>
+    <% if (notifications.length === 0) { %>
+      <p class="muted">Nothing yet. You'll be told here when someone picks up, updates or comments on a ticket you're involved in.</p>
+    <% } else { %>
+      <ul class="notification-list">
+        <% notifications.forEach(function(n) { %>
+          <li class="<%= n.read ? 'read' : 'unread' %>">
+            <form action="/notifications/<%= n.id %>/open" method="POST">
+              <button type="submit" class="notification-link">
+                <% if (!n.read) { %><span class="dot" aria-label="unread"></span><% } %>
+                <span><%= n.message %></span>
+                <span class="small muted"><%= new Date(n.createdAt).toLocaleString() %></span>
+              </button>
+            </form>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </main>
+</body>
+</html>

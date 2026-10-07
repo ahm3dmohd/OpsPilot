@@ -20,16 +20,20 @@
         <input type="email" name="email" required />
       </label>
       <label>Password
-        <input type="password" name="password" required minlength="6" />
+        <input type="password" name="password" required minlength="8" />
       </label>
-      <label>Role
-        <select name="role" required>
-          <% roles.forEach(function(r) { %>
-            <option value="<%= r %>"><%= r.replace('_', ' ') %></option>
-          <% }) %>
-        </select>
-      </label>
-      <p class="muted small">Role is self-selected here for demo purposes only &mdash; a real deployment would assign roles by admin, not at signup.</p>
+      <% if (roles.length > 1) { %>
+        <label>Role
+          <select name="role" required>
+            <% roles.forEach(function(r) { %>
+              <option value="<%= r %>"><%= r.replace('_', ' ') %></option>
+            <% }) %>
+          </select>
+        </label>
+        <p class="muted small">Role picker is on because ALLOW_ROLE_SELECT_ON_REGISTER=true (demo only) &mdash; a real deployment assigns staff roles by admin.</p>
+      <% } else { %>
+        <p class="muted small">New accounts are End User accounts. Agent and manager accounts are set up by IT.</p>
+      <% } %>
       <button type="submit">Create account</button>
     </form>
 
