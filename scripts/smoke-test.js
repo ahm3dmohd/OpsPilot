@@ -108,8 +108,17 @@ async function main() {
     const agent2 = client();
     const manager = client();
 
-    console.log('Auth');
-    let r = await anon.get('/dashboard');
+    console.log('Styles');
+    let r = await anon.get('/css/app.css');
+    const neededClasses = ['pill-open', 'pill-in-progress', 'pill-resolved', 'pill-closed', 'pill-low', 'pill-medium', 'pill-high', 'pill-urgent',
+      'pill-sla-breached', 'pill-sla-at_risk', 'pill-sla-ok', 'pill-sla-met', 'strip-low', 'strip-medium', 'strip-high', 'strip-urgent'];
+    const missingCss = neededClasses.filter((c) => !r.text.includes(`.${c}`));
+    check('compiled CSS includes the data-driven classes (run npm run build:css if not)', r.status === 200 && missingCss.length === 0, missingCss.join(', '));
+    r = await anon.get('/fonts/ibm-plex-sans-latin-400-normal.woff2');
+    check('fonts are served locally', r.status === 200);
+
+    console.log('\nAuth');
+    r = await anon.get('/dashboard');
     check('logged-out user is sent to /login', r.status === 302 && r.location === '/login');
     r = await anon.post('/login', { email: 'agent@opspilot.test', password: 'wrong' });
     check('wrong password is rejected (401)', r.status === 401);
@@ -206,7 +215,7 @@ async function main() {
     r = await agent2.post(`/tickets/${newId}/claim`);
     check('second agent cannot steal it', r.location.includes('msg=already_claimed'));
     r = await agent.get(`/tickets/${newId}`);
-    check('ticket is now In Progress and assigned', r.text.includes('In Progress') && r.text.includes('Assigned to Adel Haddad'));
+    check('ticket is now In Progress and assigned', r.text.includes('In Progress') && r.text.includes('data-assignee="Adel Haddad"'));
     r = await agent.post(`/tickets/${newId}/comment`, { body: 'Looking into it - can you try a wired connection?' });
     check('agent comments', r.status === 302);
     r = await endUser.post(`/tickets/${newId}/comment`, { body: 'Wired is the same.' });
@@ -267,7 +276,9 @@ async function main() {
     r = await agent.post(`/kb/${newKb}`, { title: 'Echo on Teams calls', body: 'If people hear an echo of themselves on Teams calls, use a headset instead of laptop speakers.', category: 'Software' });
     check('agent can edit it', r.status === 302);
     r = await manager.get('/dashboard');
-    check('manager dashboard shows KB stats (1 view, 1 helpful vote, refresh/double-vote not counted)', /KB-03<\/a> Printer shows offline<\/td>\s*<td><a[^>]*>1<\/a><\/td><td><a[^>]*>1<\/a><\/td><td><a[^>]*>0<\/a><\/td>/.test(r.text));
+    const kbRow = (r.text.match(/<tr>\s*<td><a href="\/kb\/KB-03"[\s\S]*?<\/tr>/) || [''])[0];
+    const kbNums = [...kbRow.matchAll(/>(\d+)<\/a><\/td>/g)].map((m) => m[1]).join(',');
+    check('manager dashboard shows KB stats (1 view, 1 helpful vote, refresh/double-vote not counted)', kbNums === '1,1,0', `(got ${kbNums})`);
     const kbHelp = await endUser.json('/help/ask', { question: 'people hear an echo on my teams call' });
     check('help assistant finds the new article', kbHelp.body.articles.some((a) => a.articleId === newKb));
     r = await manager.post(`/kb/${newKb}/delete`);
@@ -285,7 +296,7 @@ async function main() {
     check('CSV includes duplicate + SLA columns', r.text.includes('"aiMatches"') && r.text.includes('"slaOverall"'));
     r = await manager.get('/evaluation');
     check('manager sees the evaluation page', r.status === 200 && r.text.includes('Held-out test') && r.text.includes('F1'));
-    if (aiOn) check('evaluation includes the AI method', r.text.includes('AI @'));
+    if (aiOn) check('evaluation includes the AI method', r.text.includes('AI (embeddings + cosine), threshold'));
 
     console.log('\nClickable dashboard numbers');
     r = await manager.get('/dashboard');
@@ -297,7 +308,7 @@ async function main() {
     const mismatches = [];
     for (const l of links) {
       const page = await manager.get(l.href);
-      const listed = (page.text.match(/<h1>(\d+) ticket/) || [])[1];
+      const listed = (page.text.match(/data-count="(\d+)"/) || [])[1];
       if (page.status !== 200 || listed !== l.shown) mismatches.push(`${l.href} shows ${l.shown}, list has ${listed} (HTTP ${page.status})`);
     }
     check('every dashboard number equals the length of the list it opens', mismatches.length === 0, mismatches.join('; '));
@@ -305,13 +316,15 @@ async function main() {
     check('SLA breached list shows only breached tickets', !/sla-(ok|met|at_risk)"/.test(r.text) && r.text.includes('SLA breached'));
     check('filters show as removable chips', r.text.includes('class="chip"') && r.text.includes('href="/tickets?state=active"'));
     r = await manager.get('/tickets?status=Bogus&priority=Nope&assignee=%3Cscript%3E');
-    check('invalid filter values are ignored, not errors', r.status === 200 && !r.text.includes('class="chip"') && !r.text.includes('<script>'));
+    check('invalid filter values are ignored, not errors', r.status === 200 && !r.text.includes('class="chip"'));
+    r = await manager.get('/tickets?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E');
+    check('search text is HTML-escaped, never run as script', r.status === 200 && r.text.includes('&lt;script&gt;alert(1)') && !r.text.includes('<script>alert(1)'));
     r = await manager.get('/tickets?q=printer');
     check('search filter works', r.text.includes('Printer on 3rd floor') && !r.text.includes('VPN keeps dropping'));
     r = await agent.get('/tickets?priority=High');
     check('agents can use the filtered list too', r.status === 200 && r.text.includes('Priority: High'));
     const filteredList = await manager.get('/tickets?category=Network');
-    const filteredCount = (filteredList.text.match(/<h1>(\d+) ticket/) || [])[1];
+    const filteredCount = (filteredList.text.match(/data-count="(\d+)"/) || [])[1];
     r = await manager.get('/reports/tickets.csv?category=Network');
     const csvLines = r.text.trim().split('\r\n').length - 1;
     check('filtered CSV export has exactly the listed rows', String(csvLines) === filteredCount && !r.text.includes('"Hardware"'), `(csv ${csvLines}, list ${filteredCount})`);

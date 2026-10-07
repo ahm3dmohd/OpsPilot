@@ -1,15 +1,16 @@
-<%# Floating self-service help widget for end users. Uses /help/ask (JSON);
-    the /help page is the no-JavaScript fallback. %>
-<div class="help-widget" id="helpWidget">
-  <button type="button" class="help-toggle" id="helpToggle" aria-expanded="false">Need help?</button>
-  <div class="help-panel" id="helpPanel" hidden>
-    <p class="small muted">Describe the problem - I'll check the knowledge base and your open tickets first.</p>
-    <form id="helpForm" action="/help" method="GET">
-      <input type="text" name="q" id="helpQ" placeholder="e.g. my VPN keeps disconnecting" maxlength="500" required />
-      <button type="submit">Ask</button>
+<%# Floating self-service help for end users. Uses /help/ask (JSON); the
+    /help page is the no-JavaScript fallback. %>
+<div class="fixed right-4 bottom-4 z-30 sm:right-6 sm:bottom-6" id="helpWidget">
+  <div id="helpPanel" hidden class="absolute right-0 bottom-14 w-[min(23rem,calc(100vw-2rem))] max-h-[65vh] overflow-y-auto rounded-lg border border-line bg-surface p-4 shadow-xl shadow-ink/10">
+    <h2 class="text-base">Get help</h2>
+    <p class="hint mt-0.5">Describe the problem. We'll check help articles and your open tickets first.</p>
+    <form id="helpForm" action="/help" method="GET" class="mt-3 flex gap-2">
+      <input class="input py-1.5" type="text" name="q" id="helpQ" placeholder="e.g. my VPN keeps disconnecting" maxlength="500" required />
+      <button type="submit" class="btn-primary btn-sm">Ask</button>
     </form>
-    <div id="helpResults" aria-live="polite"></div>
+    <div id="helpResults" class="mt-3 space-y-3 text-sm" aria-live="polite"></div>
   </div>
+  <button type="button" id="helpToggle" aria-expanded="false" aria-controls="helpPanel" class="btn-primary rounded-full px-4 py-2.5 shadow-lg shadow-ink/20"><%- icon('life-buoy') %> Need help?</button>
 </div>
 <script>
   (function () {
@@ -39,32 +40,26 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
           out.textContent = '';
-          if (data.ownTickets.length) {
-            out.appendChild(el('p', 'You already have a ticket that looks related:', 'small'));
-            data.ownTickets.forEach(function (t) {
-              var a = el('a', t.ticketId + ': ' + t.title + ' (' + t.status + ')');
-              a.href = '/tickets/' + encodeURIComponent(t.ticketId);
-              var p = el('p', '', 'small'); p.appendChild(a); out.appendChild(p);
-            });
-          }
-          if (data.articles.length) {
-            data.articles.forEach(function (a) {
-              var box = el('div', '', 'help-article');
-              var title = el('a', a.title);
-              title.href = '/kb/' + encodeURIComponent(a.articleId);
-              var strong = el('strong'); strong.appendChild(title);
-              box.appendChild(strong);
-              box.appendChild(el('p', a.body, 'small'));
-              out.appendChild(box);
-            });
-          } else {
-            out.appendChild(el('p', 'No matching help article.', 'small muted'));
-          }
-          var link = el('a', 'Still stuck? File a ticket', 'button small-button');
+          data.ownTickets.forEach(function (t) {
+            var p = el('p', 'You already have a related ticket: ', 'text-ink-soft');
+            var a = el('a', t.ticketId + ' ' + t.title + ' (' + t.status + ')');
+            a.href = '/tickets/' + encodeURIComponent(t.ticketId);
+            p.appendChild(a); out.appendChild(p);
+          });
+          data.articles.forEach(function (a) {
+            var box = el('div', '', 'border-l-2 border-brand pl-3');
+            var title = el('a', a.title, 'font-medium');
+            title.href = '/kb/' + encodeURIComponent(a.articleId);
+            box.appendChild(title);
+            box.appendChild(el('p', a.body, 'mt-1 text-ink-soft'));
+            out.appendChild(box);
+          });
+          if (!data.articles.length && !data.ownTickets.length) out.appendChild(el('p', 'No help article matches that. Report it and IT will take a look.', 'text-muted'));
+          var link = el('a', 'Report a problem', 'btn-secondary btn-sm');
           link.href = '/tickets/new';
           out.appendChild(link);
         })
-        .catch(function () { out.textContent = 'Help is unavailable right now - you can still file a ticket.'; });
+        .catch(function () { out.textContent = "Help search isn't available right now. You can still report a problem."; });
     });
   })();
 </script>

@@ -1,43 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Register' }) %>
-</head>
-<body>
-  <main class="auth-container">
-    <h1>OpsPilot</h1>
-    <p class="subtitle">Create an account.</p>
+<%- include('partials/auth-layout-top', { title: 'Create account' }) %>
+  <%- include('partials/auth-aside') %>
+  <main class="flex items-center justify-center bg-surface px-6 py-12">
+    <div class="w-full max-w-sm">
+      <h1>Create an account</h1>
+      <p class="mt-1 text-ink-soft">To report problems and follow your requests.</p>
 
-    <% if (error) { %>
-      <p class="error"><%= error %></p>
-    <% } %>
+      <% if (error) { %><p class="notice-error mt-6" role="alert"><%= error %></p><% } %>
 
-    <form action="/register" method="POST" class="auth-form">
-      <label>Name
-        <input type="text" name="name" required autofocus />
-      </label>
-      <label>Email
-        <input type="email" name="email" required />
-      </label>
-      <label>Password
-        <input type="password" name="password" required minlength="8" />
-      </label>
-      <% if (roles.length > 1) { %>
-        <label>Role
-          <select name="role" required>
-            <% roles.forEach(function(r) { %>
-              <option value="<%= r %>"><%= r.replace('_', ' ') %></option>
-            <% }) %>
-          </select>
+      <form action="/register" method="POST" class="mt-6 space-y-4">
+        <label class="field">Full name
+          <input class="input" type="text" name="name" required autofocus autocomplete="name" />
         </label>
-        <p class="muted small">Role picker is on because ALLOW_ROLE_SELECT_ON_REGISTER=true (demo only) &mdash; a real deployment assigns staff roles by admin.</p>
-      <% } else { %>
-        <p class="muted small">New accounts are End User accounts. Agent and manager accounts are set up by IT.</p>
-      <% } %>
-      <button type="submit">Create account</button>
-    </form>
-
-    <p class="muted">Already have an account? <a href="/login">Log in</a></p>
+        <label class="field">Email
+          <input class="input" type="email" name="email" required autocomplete="email" />
+        </label>
+        <label class="field">Password
+          <input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" />
+          <span class="hint">At least 8 characters.</span>
+        </label>
+        <% if (roles.length > 1) { %>
+          <label class="field">Role
+            <select class="input" name="role" required>
+              <% roles.forEach(function(r) { %><option value="<%= r %>"><%= { end_user: 'End user', agent: 'Agent', manager: 'Manager' }[r] %></option><% }) %>
+            </select>
+            <span class="hint">Shown because ALLOW_ROLE_SELECT_ON_REGISTER=true (demo only). Real staff accounts are set up by IT.</span>
+          </label>
+        <% } else { %>
+          <p class="hint">New accounts can report and follow their own tickets. Agent and manager accounts are set up by IT.</p>
+        <% } %>
+        <button type="submit" class="btn-primary w-full py-2.5">Create account</button>
+      </form>
+      <p class="mt-4 text-sm text-ink-soft">Already have an account? <a href="/login">Log in</a></p>
+    </div>
   </main>
+  </div>
 </body>
 </html>

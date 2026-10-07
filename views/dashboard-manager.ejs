@@ -1,153 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Manager overview' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <div class="page-header">
-      <h1>Overview</h1>
-      <div class="header-actions">
-        <span class="muted small">Data: <%= mode === 'db' ? 'MongoDB' : 'mock (in-memory)' %></span>
-        <a href="/reports/tickets.csv" class="button">Export CSV</a>
-      </div>
-    </div>
+<%- include('partials/layout-top', { title: 'Overview' }) %>
 
-    <p class="muted small">Every number is a link to the tickets behind it.</p>
-    <div class="stat-grid">
-      <a class="stat-card" href="<%= total.href %>">
-        <div class="stat-number"><%= total.count %></div>
-        <div class="stat-label">Total tickets</div>
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1>Overview</h1>
+    <p class="mt-1 text-sm text-muted">Every number opens the tickets behind it. Data source: <%= mode === 'db' ? 'MongoDB' : 'demo data (in memory)' %>.</p>
+  </div>
+  <a href="/reports/tickets.csv" class="btn-secondary"><%- icon('download') %> Export CSV</a>
+</div>
+
+<%# ---- What needs attention now: the SLA watch list ---- %>
+<section class="panel mt-6 overflow-hidden" aria-labelledby="slaWatch">
+  <div class="panel-head">
+    <h2 id="slaWatch" class="flex items-center gap-2"><%- icon('clock', 'size-[18px] text-muted') %> SLA watch</h2>
+    <span class="text-xs text-muted">Open and In Progress tickets</span>
+  </div>
+  <div class="grid grid-cols-3 divide-x divide-line border-b border-line">
+    <% var slaText = { breached: 'Breached', at_risk: 'At risk', ok: 'On track' };
+       var slaColor = { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink' }; %>
+    <% slaCards.forEach(function(c) { %>
+      <a class="gauge sla-card-<%= c.key %>" href="<%= c.href %>">
+        <span class="gauge-value <%= slaColor[c.key] %>"><%= c.count %></span>
+        <span class="gauge-label"><%= slaText[c.key] %><%= c.key === 'at_risk' ? ' (75%+ of time used)' : '' %></span>
       </a>
-      <% byStatus.forEach(function(x) { %>
-        <a class="stat-card" href="<%= x.href %>">
-          <div class="stat-number"><%= x.count %></div>
-          <div class="stat-label"><%= x.label %></div>
-        </a>
-      <% }) %>
-      <a class="stat-card" href="<%= unassigned.href %>">
-        <div class="stat-number"><%= unassigned.count %></div>
-        <div class="stat-label">Active, unassigned</div>
-      </a>
+    <% }) %>
+  </div>
+  <% if (atRisk.length) { %>
+    <div>
+      <% atRisk.forEach(function(t) { %><%- include('partials/ticket-strip', { t: t }) %><% }) %>
     </div>
+  <% } else { %>
+    <p class="flex items-center gap-2 px-5 py-6 text-sm text-ok"><%- icon('circle-check') %> Nothing is close to missing its response or resolution time.</p>
+  <% } %>
+</section>
 
-    <h2>SLA watch</h2>
-    <p class="muted small">Active tickets only (Open or In Progress).</p>
-    <div class="stat-grid">
-      <% var slaText = { breached: 'Breached', at_risk: 'At risk (&ge;75% of target used)', ok: 'On track' }; %>
-      <% slaCards.forEach(function(c) { %>
-        <a class="stat-card sla-card-<%= c.key %>" href="<%= c.href %>">
-          <div class="stat-number"><%= c.count %></div>
-          <div class="stat-label"><%- slaText[c.key] %></div>
-        </a>
-      <% }) %>
-    </div>
-    <% if (atRisk.length) { %>
-      <table class="ticket-table">
-        <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Assignee</th><th>Clock</th><th>SLA</th></tr></thead>
-        <tbody>
-          <% atRisk.forEach(function(t) {
-               var c = t.sla.firstResponse.running ? t.sla.firstResponse : t.sla.resolution;
-               var label = (t.sla.firstResponse.running ? 'First response ' : 'Resolution ') + c.elapsedHours + 'h / ' + c.targetHours + 'h'; %>
-            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-              <td><%= t.title %></td>
-              <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
-              <td><%= t.assigneeName || '—' %></td>
-              <td class="small"><%= label %></td>
-              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } else { %>
-      <p class="muted">Nothing at risk right now.</p>
-    <% } %>
+<%# ---- Ticket counts: one instrument panel ---- %>
+<section class="panel mt-6" aria-label="Ticket counts">
+  <div class="grid grid-cols-2 divide-line sm:grid-cols-3 sm:divide-x lg:grid-cols-6">
+    <a class="gauge" href="<%= total.href %>"><span class="gauge-value"><%= total.count %></span><span class="gauge-label">All tickets</span></a>
+    <% byStatus.forEach(function(x) { %>
+      <a class="gauge" href="<%= x.href %>"><span class="gauge-value"><%= x.count %></span><span class="gauge-label"><%= x.label %></span></a>
+    <% }) %>
+    <a class="gauge" href="<%= unassigned.href %>"><span class="gauge-value <%= unassigned.count ? 'text-caution' : '' %>"><%= unassigned.count %></span><span class="gauge-label">Active, unassigned</span></a>
+  </div>
+</section>
 
-    <div class="three-col mt">
-      <div>
-        <h2>By category</h2>
-        <ul class="bar-list">
-          <% byCategory.forEach(function(x) { %>
-            <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
+<%# ---- Breakdowns with proportional bars ---- %>
+<div class="mt-6 grid gap-6 lg:grid-cols-3">
+  <% [['By category', byCategory, ''], ['By priority', byPriority, ''], ['Agent workload', workloads, ' in progress']].forEach(function(group) {
+       var rows = group[1]; var max = Math.max.apply(null, rows.map(function(r) { return r.count; }).concat([1])); %>
+    <section class="panel">
+      <div class="panel-head"><h2><%= group[0] %></h2></div>
+      <% if (rows.length === 0) { %>
+        <p class="panel-body text-sm text-muted">No agents yet.</p>
+      <% } else { %>
+        <ul class="py-2">
+          <% rows.forEach(function(x) { %>
+            <li>
+              <a href="<%= x.href %>" class="group flex flex-col gap-1.5 px-5 py-2 text-ink no-underline hover:bg-sunken hover:no-underline">
+                <span class="flex items-baseline justify-between gap-3 text-sm">
+                  <span class="group-hover:text-brand"><%= x.label %></span>
+                  <span class="font-semibold tabular-nums"><%= x.count %><span class="font-normal text-muted"><%= group[2] %></span></span>
+                </span>
+                <span class="h-1.5 overflow-hidden rounded-full bg-sunken"><span class="block h-full rounded-full bg-brand/70" style="width: <%= Math.round(x.count / max * 100) %>%"></span></span>
+              </a>
+            </li>
           <% }) %>
         </ul>
-      </div>
-      <div>
-        <h2>By priority</h2>
-        <ul class="bar-list">
-          <% byPriority.forEach(function(x) { %>
-            <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
-          <% }) %>
-        </ul>
-      </div>
-      <div>
-        <h2>Agent workload</h2>
-        <% if (workloads.length === 0) { %>
-          <p class="muted">No agents yet.</p>
-        <% } else { %>
-          <ul class="bar-list">
-            <% workloads.forEach(function(x) { %>
-              <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %> in progress</span></a></li>
-            <% }) %>
-          </ul>
-        <% } %>
-      </div>
-    </div>
+      <% } %>
+    </section>
+  <% }) %>
+</div>
 
-    <h2 class="mt">AI features</h2>
-    <ul class="bar-list">
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <%# ---- AI features ---- %>
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="flex items-center gap-2"><%- icon('sparkles', 'size-[18px] text-muted') %> Duplicate detection</h2>
+      <a href="/evaluation" class="text-sm">Measured accuracy</a>
+    </div>
+    <ul class="py-2">
       <% dupStats.forEach(function(x) { %>
-        <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
+        <li><a href="<%= x.href %>" class="flex justify-between gap-3 px-5 py-1.5 text-sm text-ink no-underline hover:bg-sunken hover:no-underline"><span><%= x.label %></span><span class="font-semibold tabular-nums"><%= x.count %></span></a></li>
       <% }) %>
-      <li>
+      <li class="flex justify-between gap-3 border-t border-line px-5 pt-3 pb-1.5 mt-2 text-sm">
         <span>Category suggestions kept as-is</span>
-        <span class="count"><a href="<%= suggestionStats.accepted.href %>"><%= suggestionStats.accepted.count %></a> / <a href="<%= suggestionStats.total.href %>"><%= suggestionStats.total.count %></a></span>
+        <span class="font-semibold tabular-nums"><a href="<%= suggestionStats.accepted.href %>"><%= suggestionStats.accepted.count %></a> <span class="font-normal text-muted">of</span> <a href="<%= suggestionStats.total.href %>"><%= suggestionStats.total.count %></a></span>
       </li>
     </ul>
-    <p class="small"><a href="/evaluation">See the measured AI-vs-baseline evaluation &rarr;</a></p>
+  </section>
 
-    <h2 class="mt">Knowledge base</h2>
+  <%# ---- Knowledge base ---- %>
+  <section class="panel overflow-hidden">
+    <div class="panel-head">
+      <h2 class="flex items-center gap-2"><%- icon('book-open', 'size-[18px] text-muted') %> Knowledge base</h2>
+      <a href="/kb" class="text-sm">Manage articles</a>
+    </div>
     <% if (kbStats.length === 0) { %>
-      <p class="muted">No articles yet.</p>
+      <p class="panel-body text-sm text-muted">No articles yet.</p>
     <% } else { %>
-      <table class="ticket-table">
-        <thead><tr><th>Article</th><th>Views</th><th>Helpful</th><th>Not helpful</th></tr></thead>
+      <table class="data-table">
+        <thead><tr><th>Most viewed</th><th class="text-right">Views</th><th class="text-right">Helpful</th><th class="text-right">Not helpful</th></tr></thead>
         <tbody>
           <% kbStats.forEach(function(a) { %>
-            <tr onclick="location.href='/kb/<%= a.articleId %>'">
-              <td><a href="/kb/<%= a.articleId %>"><%= a.articleId %></a> <%= a.title %></td>
-              <td><a href="/kb/<%= a.articleId %>"><%= a.views %></a></td><td><a href="/kb/<%= a.articleId %>"><%= a.helpful %></a></td><td><a href="/kb/<%= a.articleId %>"><%= a.notHelpful %></a></td>
+            <tr>
+              <td><a href="/kb/<%= a.articleId %>" class="callsign mr-1.5"><%= a.articleId %></a> <%= a.title %></td>
+              <td class="text-right tabular-nums"><a href="/kb/<%= a.articleId %>"><%= a.views %></a></td><td class="text-right tabular-nums"><a href="/kb/<%= a.articleId %>"><%= a.helpful %></a></td><td class="text-right tabular-nums"><a href="/kb/<%= a.articleId %>"><%= a.notHelpful %></a></td>
             </tr>
           <% }) %>
         </tbody>
       </table>
-      <p class="small"><a href="/kb">Manage articles &rarr;</a></p>
     <% } %>
+  </section>
+</div>
 
-    <div class="page-header mt">
-      <h2>All tickets</h2>
-      <a href="/tickets" class="small">Filter &amp; search &rarr;</a>
-    </div>
-    <table class="ticket-table">
-      <thead>
-        <tr><th>ID</th><th>Title</th><th>Requester</th><th>Assignee</th><th>Priority</th><th>Status</th><th>SLA</th></tr>
-      </thead>
-      <tbody>
-        <% tickets.forEach(function(t) { %>
-          <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-            <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-            <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
-            <td><%= t.requesterName %></td>
-            <td><%= t.assigneeName || '—' %></td>
-            <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
-            <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
-            <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </main>
-</body>
-</html>
+<%# ---- Latest tickets ---- %>
+<section class="panel mt-6 overflow-hidden">
+  <div class="panel-head">
+    <h2>Latest tickets</h2>
+    <a href="/tickets" class="text-sm">All <%= tickets.length %> tickets, with filters</a>
+  </div>
+  <div>
+    <% tickets.slice(0, 8).forEach(function(t) { %><%- include('partials/ticket-strip', { t: t }) %><% }) %>
+  </div>
+</section>
+
+<%- include('partials/layout-bottom') %>

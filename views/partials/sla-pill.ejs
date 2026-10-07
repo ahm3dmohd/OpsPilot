@@ -1,3 +1,3 @@
-<%# expects: sla (from lib/sla.js slaFor) %>
-<% const labels = { breached: 'SLA breached', at_risk: 'SLA at risk', ok: 'On track', met: 'SLA met' }; %>
-<span class="pill sla-<%= sla.overall %>" title="First response: <%= sla.firstResponse.elapsedHours %>h of <%= sla.firstResponse.targetHours %>h &middot; Resolution: <%= sla.resolution.elapsedHours %>h of <%= sla.resolution.targetHours %>h"><%= labels[sla.overall] %></span>
+<%# Expects: sla (from lib/sla.js slaFor) %>
+<% var labels = { breached: 'SLA breached', at_risk: 'SLA at risk', ok: 'On track', met: 'SLA met' }; %>
+<span class="pill-sla-<%= sla.overall %> sla-<%= sla.overall %>"><%= labels[sla.overall] %></span>

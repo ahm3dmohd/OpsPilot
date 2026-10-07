@@ -1,13 +1,1 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Not found' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <h1>404</h1>
-    <p><%= url %> was not found.</p>
-  </main>
-</body>
-</html>
+<%- include('partials/error-page', { heading: 'Page not found', message: 'Nothing exists at ' + url + '. The ticket or article may have been deleted, or the link has a typo.' }) %>

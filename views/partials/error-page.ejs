@@ -1,0 +1,16 @@
+<%# Shared error page body. Expects: heading, message. Works logged in or out. %>
+<% if (currentUser) { %>
+  <%- include('layout-top', { title: heading }) %>
+<% } else { %>
+  <!DOCTYPE html><html lang="en"><head><%- include('head', { title: heading }) %></head><body><main id="main" class="mx-auto max-w-xl px-6 py-24">
+<% } %>
+  <div class="max-w-xl py-10">
+    <h1><%= heading %></h1>
+    <p class="mt-2 text-ink-soft"><%= message %></p>
+    <p class="mt-6"><a href="<%= currentUser ? '/dashboard' : '/login' %>" class="btn-secondary"><%- icon('arrow-left') %> <%= currentUser ? 'Back to dashboard' : 'Go to log in' %></a></p>
+  </div>
+<% if (currentUser) { %>
+  <%- include('layout-bottom') %>
+<% } else { %>
+  </main></body></html>
+<% } %>

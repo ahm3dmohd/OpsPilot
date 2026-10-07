@@ -1,42 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'AI evaluation' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <% const pct = function(x) { return Math.round(x * 100) + '%'; }; %>
-  <main class="container">
-    <h1>Duplicate detection: AI vs. baseline</h1>
-    <p class="muted">Both methods scored against tickets whose correct answers are known in advance. Same computation as <code>npm run evaluate</code>. Uses the fixed seed and held-out sets, not live tickets, so the numbers don't drift as the app is used.</p>
-    <% if (r.aiStatus.status !== 'ok') { %>
-      <p class="error">AI method not evaluated: <%= r.aiStatus.reason %>. Baseline only.</p>
-    <% } %>
+<%- include('partials/layout-top', { title: 'AI evaluation' }) %>
+<% var pct = function(x) { return Math.round(x * 100) + '%'; }; %>
 
-    <h2 class="mt">Held-out test <span class="muted small">(the fair numbers - thresholds were never tuned on these)</span></h2>
-    <p class="muted small"><%= r.holdout.length %> new tickets, each compared against the <%= r.seedCount %> seed tickets at fixed thresholds.</p>
-    <div class="stat-grid">
-      <% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %>
-        <div class="stat-card">
-          <div class="stat-label"><%= h.name %> @ <%= h.threshold %></div>
-          <div class="stat-number"><%= h.at.f1.toFixed(2) %></div>
-          <div class="stat-label">F1 &middot; precision <%= pct(h.at.precision) %> &middot; recall <%= pct(h.at.recall) %></div>
-          <div class="stat-label">top match right <%= h.topRight %>/<%= h.withCluster %> &middot; false alarms <%= h.falseAlarms %>/<%= h.noCluster %></div>
-        </div>
-      <% }) %>
-    </div>
-    <table class="ticket-table eval-table">
-      <thead><tr><th>Held-out ticket</th><th>Expected</th><% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %><th><%= h.name %></th><% }) %></tr></thead>
+<h1>Duplicate detection: AI vs. baseline</h1>
+<p class="mt-1 max-w-3xl text-sm text-ink-soft">Both methods are scored on tickets whose correct answers are known in advance. This is the same computation as <code>npm run evaluate</code>, run on the fixed seed and held-out sets rather than live tickets, so the numbers don't drift as the app is used.</p>
+
+<% if (r.aiStatus.status !== 'ok') { %>
+  <p class="notice-error mt-6" role="alert">AI method not evaluated: <%= r.aiStatus.reason %>. Showing the baseline only.</p>
+<% } %>
+
+<%# ---- Held-out: the numbers to quote ---- %>
+<section class="mt-8" aria-labelledby="heldOut">
+  <h2 id="heldOut">Held-out test</h2>
+  <p class="mt-1 text-sm text-muted"><%= r.holdout.length %> new tickets, never used to choose the thresholds, each compared against the <%= r.seedCount %> seed tickets. These are the fair numbers.</p>
+
+  <div class="panel mt-4 grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+    <% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %>
+      <div class="px-6 py-5">
+        <p class="text-sm font-medium text-ink-soft"><%= h.name === 'AI' ? 'AI (embeddings + cosine)' : 'Baseline (keywords + Jaccard)' %>, threshold <%= h.threshold %></p>
+        <p class="mt-1 flex items-baseline gap-2"><span class="text-4xl font-semibold tabular-nums tracking-tight <%= h.name === 'AI' ? 'text-brand' : 'text-ink' %>"><%= h.at.f1.toFixed(2) %></span><span class="text-sm text-muted">F1 score</span></p>
+        <dl class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+          <dt class="text-muted">Precision</dt><dd class="tabular-nums"><%= pct(h.at.precision) %></dd>
+          <dt class="text-muted">Recall</dt><dd class="tabular-nums"><%= pct(h.at.recall) %></dd>
+          <dt class="text-muted">Top match right</dt><dd class="tabular-nums"><%= h.topRight %> of <%= h.withCluster %></dd>
+          <dt class="text-muted">False alarms</dt><dd class="tabular-nums"><%= h.falseAlarms %> of <%= h.noCluster %></dd>
+        </dl>
+      </div>
+    <% }) %>
+  </div>
+
+  <div class="panel mt-4 overflow-x-auto">
+    <table class="data-table">
+      <thead><tr><th>Held-out ticket</th><th>Should match</th><% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(h) { %><th><%= h.name %> flagged</th><% }) %></tr></thead>
       <tbody>
         <% r.holdout.forEach(function(h, i) { %>
           <tr>
-            <td><%= h.title %></td>
-            <td><%= h.expectedCluster || '(none)' %></td>
+            <td class="font-medium"><%= h.title %></td>
+            <td class="text-ink-soft"><%= h.expectedCluster || 'nothing' %></td>
             <% [r.held.ai, r.held.baseline].filter(Boolean).forEach(function(m) { var f = m.perTicket[i]; %>
-              <td class="small">
-                <% if (!f.length) { %><span class="muted">no matches</span><% } %>
+              <td>
+                <% if (!f.length) { %><span class="<%= h.expectedCluster ? 'text-danger' : 'text-ok' %>"><%= h.expectedCluster ? 'missed' : 'nothing (correct)' %></span><% } %>
                 <% f.forEach(function(x) { %>
-                  <span class="<%= x.truth ? 'ok-text' : 'error' %>"><%= x.ticketId %> <%= x.score.toFixed(2) %><%= x.truth ? '' : ' ✗' %></span><br>
+                  <span class="block whitespace-nowrap tabular-nums <%= x.truth ? 'text-ok' : 'text-danger' %>"><%- icon(x.truth ? 'check' : 'x', 'inline size-3.5 -mt-0.5') %> <span class="font-mono text-[13px]"><%= x.ticketId %></span> <%= x.score.toFixed(2) %></span>
                 <% }) %>
               </td>
             <% }) %>
@@ -44,40 +48,59 @@
         <% }) %>
       </tbody>
     </table>
+  </div>
+</section>
 
-    <h2 class="mt">Seed set <span class="muted small">(thresholds tuned here, so optimistic)</span></h2>
-    <p class="muted small"><%= r.seedCount %> tickets, <%= r.pairCount %> pairs, <%= r.truePairs %> true duplicate pairs (same cluster label).</p>
-    <div class="two-col">
-      <% [r.seed.ai, r.seed.baseline].filter(Boolean).forEach(function(s) { %>
-        <div>
+<%# ---- Seed set ---- %>
+<section class="mt-12" aria-labelledby="seedSet">
+  <h2 id="seedSet">Seed set</h2>
+  <p class="mt-1 text-sm text-muted"><%= r.seedCount %> tickets, <%= r.pairCount %> pairs, <%= r.truePairs %> true duplicate pairs. The thresholds were chosen on this set, so these numbers are optimistic.</p>
+  <div class="mt-4 grid gap-6 lg:grid-cols-2">
+    <% [r.seed.ai, r.seed.baseline].filter(Boolean).forEach(function(s) { %>
+      <div class="panel overflow-hidden">
+        <div class="border-b border-line px-5 py-3">
           <h3><%= s.name %></h3>
-          <p class="small">At <strong><%= s.threshold %></strong>: precision <%= pct(s.at.precision) %>, recall <%= pct(s.at.recall) %>, F1 <%= s.at.f1.toFixed(2) %> (TP <%= s.at.tp %>, FP <%= s.at.fp %>, FN <%= s.at.fn %>)</p>
-          <table class="ticket-table eval-table">
-            <thead><tr><th>Threshold</th><th>P</th><th>R</th><th>F1</th></tr></thead>
-            <tbody>
-              <% s.sweep.forEach(function(m) { %>
-                <tr class="<%= m.threshold === s.threshold ? 'current' : '' %>"><td><%= m.threshold.toFixed(2) %></td><td><%= pct(m.precision) %></td><td><%= pct(m.recall) %></td><td><%= m.f1.toFixed(2) %></td></tr>
-              <% }) %>
-            </tbody>
-          </table>
-          <p class="small muted mt">Closest non-duplicates:</p>
-          <ul class="small">
-            <% s.closestFalse.slice(0, 3).forEach(function(p) { %><li><%= p.score.toFixed(3) %> &middot; <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
-          </ul>
-          <p class="small muted">Hardest true duplicates:</p>
-          <ul class="small">
-            <% s.weakestTrue.slice(0, 3).forEach(function(p) { %><li><%= p.score.toFixed(3) %> &middot; <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
-          </ul>
+          <p class="mt-0.5 text-sm text-ink-soft">At <%= s.threshold %>: precision <%= pct(s.at.precision) %>, recall <%= pct(s.at.recall) %>, F1 <%= s.at.f1.toFixed(2) %> (<%= s.at.tp %> right, <%= s.at.fp %> false, <%= s.at.fn %> missed)</p>
         </div>
-      <% }) %>
-    </div>
+        <table class="data-table">
+          <thead><tr><th>Threshold</th><th class="text-right">Precision</th><th class="text-right">Recall</th><th class="text-right">F1</th></tr></thead>
+          <tbody>
+            <% s.sweep.forEach(function(m) { var current = m.threshold === s.threshold; %>
+              <tr class="<%= current ? 'bg-brand-soft font-semibold text-brand-ink' : '' %>">
+                <td class="tabular-nums"><%= m.threshold.toFixed(2) %><%= current ? ' (in use)' : '' %></td>
+                <td class="text-right tabular-nums"><%= pct(m.precision) %></td>
+                <td class="text-right tabular-nums"><%= pct(m.recall) %></td>
+                <td class="text-right tabular-nums"><%= m.f1.toFixed(2) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <div class="space-y-3 border-t border-line px-5 py-4 text-sm">
+          <div>
+            <p class="font-medium">Closest non-duplicates</p>
+            <ul class="mt-1 space-y-0.5 text-ink-soft">
+              <% s.closestFalse.slice(0, 3).forEach(function(p) { %><li><span class="tabular-nums text-muted"><%= p.score.toFixed(3) %></span> <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
+            </ul>
+          </div>
+          <div>
+            <p class="font-medium">Hardest true duplicates</p>
+            <ul class="mt-1 space-y-0.5 text-ink-soft">
+              <% s.weakestTrue.slice(0, 3).forEach(function(p) { %><li><span class="tabular-nums text-muted"><%= p.score.toFixed(3) %></span> <%= p.aTitle %> / <%= p.bTitle %></li><% }) %>
+            </ul>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</section>
 
-    <h2 class="mt">Caveats</h2>
-    <ul class="small">
-      <li>20 tickets is a small, hand-made set: a sanity check of the approach, not a general accuracy claim.</li>
-      <li>Quote the held-out numbers. The seed-set numbers come from thresholds tuned on that same set.</li>
-      <li>Held-out tickets were written by the same author as the seed set; tickets written by someone else would be a stronger test.</li>
-    </ul>
-  </main>
-</body>
-</html>
+<section class="mt-12 max-w-3xl" aria-labelledby="caveats">
+  <h2 id="caveats">Caveats</h2>
+  <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft">
+    <li>20 tickets is a small, hand-made set: a sanity check of the approach, not a general accuracy claim.</li>
+    <li>Quote the held-out numbers. The seed-set numbers come from thresholds tuned on that same set.</li>
+    <li>The held-out tickets were written by the same author as the seed set; tickets written by someone else would be a stronger test.</li>
+  </ul>
+</section>
+
+<%- include('partials/layout-bottom') %>

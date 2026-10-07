@@ -1,38 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Help' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container narrow">
-    <h1>Help</h1>
-    <p class="muted">Describe your problem. We'll check the knowledge base and your open tickets before you file a new one.</p>
-    <form action="/help" method="GET" class="inline-form">
-      <input type="text" name="q" value="<%= q %>" maxlength="500" required placeholder="e.g. my VPN keeps disconnecting" class="grow" />
-      <button type="submit">Search</button>
-    </form>
+<%- include('partials/layout-top', { title: 'Get help' }) %>
 
-    <% if (result) { %>
-      <% if (result.ownTickets.length) { %>
-        <h2 class="mt">You already have a related ticket</h2>
+<div class="max-w-2xl">
+  <h1>Get help</h1>
+  <p class="mt-1 text-ink-soft">Describe the problem. We'll check the knowledge base and your open tickets before you report anything new.</p>
+  <form action="/help" method="GET" class="mt-6 flex gap-2">
+    <input class="input" type="text" name="q" value="<%= q %>" maxlength="500" required placeholder="e.g. my VPN keeps disconnecting" />
+    <button type="submit" class="btn-primary"><%- icon('search') %> Search</button>
+  </form>
+
+  <% if (result) { %>
+    <% if (result.ownTickets.length) { %>
+      <section class="panel mt-6 panel-body">
+        <h2 class="text-base">You already have a related ticket</h2>
         <% result.ownTickets.forEach(function(t) { %>
-          <p><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %>: <%= t.title %></a> <span class="muted small">(<%= t.status %>)</span></p>
+          <p class="mt-2 text-sm"><a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand"><%= t.ticketId %></span> <%= t.title %></a> <span class="text-muted">(<%= t.status %>)</span></p>
         <% }) %>
-      <% } %>
-      <h2 class="mt">Help articles</h2>
-      <% if (result.articles.length === 0) { %>
-        <p class="muted">No matching article.</p>
-      <% } %>
-      <% result.articles.forEach(function(a) { %>
-        <div class="help-article">
-          <strong><a href="/kb/<%= a.articleId %>"><%= a.title %></a></strong>
-          <p><%= a.body %></p>
-        </div>
-      <% }) %>
-      <p class="mt"><% if (currentUser.role === 'end_user') { %><a href="/tickets/new" class="button">Still stuck? File a ticket</a><% } %></p>
-      <p class="muted small">Matched by <%= result.method === 'ai' ? 'AI (embeddings)' : 'keywords' %>.</p>
+      </section>
     <% } %>
-  </main>
-</body>
-</html>
+    <h2 class="mt-8">Help articles</h2>
+    <% if (result.articles.length === 0) { %>
+      <p class="mt-2 text-sm text-muted">No article matches that question.</p>
+    <% } %>
+    <div class="mt-3 space-y-3">
+      <% result.articles.forEach(function(a) { %>
+        <article class="panel panel-body">
+          <h3><a href="/kb/<%= a.articleId %>"><%= a.title %></a></h3>
+          <p class="mt-1 text-sm text-ink-soft"><%= a.body %></p>
+        </article>
+      <% }) %>
+    </div>
+    <div class="mt-6 flex items-center gap-4">
+      <% if (currentUser.role === 'end_user') { %><a href="/tickets/new" class="btn-primary"><%- icon('plus') %> Report a problem</a><% } %>
+      <span class="text-xs text-muted">Matched by <%= result.method === 'ai' ? 'AI (embeddings)' : 'keywords' %>.</span>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/layout-bottom') %>

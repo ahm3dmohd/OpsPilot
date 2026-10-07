@@ -1,37 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'My tickets' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <div class="page-header">
-      <h1>My tickets</h1>
-      <a href="/tickets/new" class="button">+ New ticket</a>
-    </div>
+<%- include('partials/layout-top', { title: 'My tickets' }) %>
 
-    <% if (tickets.length === 0) { %>
-      <p class="muted">You haven't submitted any tickets yet.</p>
-    <% } else { %>
-      <table class="ticket-table">
-        <thead>
-          <tr><th>ID</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          <% tickets.forEach(function(t) { %>
-            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-              <td><%= t.title %></td>
-              <td><%= t.category %></td>
-              <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
-              <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-  </main>
-  <%- include('partials/help-widget') %>
-</body>
-</html>
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1>My tickets</h1>
+    <p class="mt-1 text-sm text-muted">Everything you've reported, newest first.</p>
+  </div>
+  <a href="/tickets/new" class="btn-primary"><%- icon('plus') %> New ticket</a>
+</div>
+
+<% if (tickets.length === 0) { %>
+  <div class="panel mt-6 panel-body">
+    <h2>No tickets yet</h2>
+    <p class="mt-1 text-sm text-ink-soft">When something isn't working, report it and you can follow its progress here. Many common problems have a quick fix in the <a href="/kb">knowledge base</a>.</p>
+    <a href="/tickets/new" class="btn-primary mt-4"><%- icon('plus') %> Report a problem</a>
+  </div>
+<% } else { %>
+  <section class="panel mt-6 overflow-hidden">
+    <% tickets.forEach(function(t) { %>
+      <% var open = t.status === 'Open' || t.status === 'In Progress'; %>
+      <a href="/tickets/<%= t.ticketId %>" class="strip strip-<%= slug(t.priority) %> <%= open ? '' : 'strip-closed' %> sm:grid-cols-[5.5rem_1fr_auto]">
+        <span class="callsign"><%= t.ticketId %></span>
+        <span class="min-w-0">
+          <span class="block truncate font-medium text-ink"><%= t.title %></span>
+          <span class="mt-0.5 flex flex-wrap gap-x-3 text-[13px] text-muted">
+            <span><%= t.category %></span>
+            <span><%= t.assigneeName ? t.assigneeName + ' is on it' : 'Waiting for an agent' %></span>
+            <span title="<%= fullDate(t.updatedAt) %>">updated <%= timeAgo(t.updatedAt) %></span>
+          </span>
+        </span>
+        <span class="col-start-2 flex gap-1.5 sm:col-start-auto">
+          <span class="pill-<%= slug(t.priority) %>"><%= t.priority %></span>
+          <span class="pill-<%= slug(t.status) %> pill-status-<%= slug(t.status) %>"><%= t.status %></span>
+        </span>
+      </a>
+    <% }) %>
+  </section>
+<% } %>
+
+<%- include('partials/help-widget') %>
+<%- include('partials/layout-bottom') %>

@@ -33,10 +33,44 @@ and fill in what you need. Every setting is explained in `.env.example`.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start with auto-reload (nodemon) |
+| `npm run build:css` | Rebuild `public/css/app.css` from `src/styles/app.css` with Tailwind (the built file is committed, so only needed after changing styles or templates) |
+| `npm run watch:css` | Rebuild the CSS automatically while you edit (run next to `npm run dev`) |
 | `npm start` | Start normally |
 | `npm run seed` | **Wipe** and load demo users + seed tickets into MongoDB (needs `MONGODB_URI`) |
-| `npm test` | End-to-end smoke test: starts the server and checks the workflow, duplicate detection, notifications, knowledge base, CSV export and every role's 403s (97 checks) |
+| `npm test` | End-to-end smoke test: starts the server and checks the workflow, duplicate detection, notifications, knowledge base, CSV export and every role's 403s (100 checks) |
 | `npm run evaluate` | AI-vs-baseline evaluation; writes `docs/evaluation-results.md` (also viewable in the app at `/evaluation`) |
+
+## Look and feel
+
+Styled with **Tailwind CSS v4**, compiled ahead of time with the Tailwind
+CLI. The CDN build isn't used: it compiles styles in the browser on every
+page load and Tailwind doesn't recommend it for production.
+
+- **Design idea.** An IT operations desk. Ticket lists use the air-traffic
+  "flight strip" format:
+  - a coloured left edge for priority
+  - the ticket ID set like a callsign
+  - the time left on the SLA at the right
+
+  Everything around the strips is kept plain.
+- **Tokens.** Colours are semantic variables (`canvas`, `surface`, `ink`,
+  `brand`, `caution`, `danger`...) defined in `src/styles/app.css`, so the
+  **dark mode** toggle only swaps variables. The choice is remembered per
+  browser and defaults to the system setting.
+- **Type.** IBM Plex Sans for all text, with IBM Plex Mono only for ticket
+  and article IDs. Both are served from `public/fonts` (no Google Fonts),
+  so a demo works offline.
+- **Icons.** [Lucide](https://lucide.dev) (ISC licence), inlined as SVG by
+  `icon()` in `lib/viewHelpers.js`.
+- **Layout.** A sidebar app shell (`views/partials/layout-top.ejs`) that
+  collapses behind a menu button on phones. Press `/` to jump to search.
+- **Accessibility.** Visible keyboard focus, a skip link, labelled
+  controls, and reduced motion respected.
+
+Classes built from data in templates (such as `pill-<%= priority %>`) are
+listed with `@source inline(...)` in `src/styles/app.css`, because
+Tailwind's scanner can't see them. `npm test` checks that they're present
+in the compiled CSS.
 
 ## Mock mode vs. real database
 
@@ -279,6 +313,7 @@ lib/
   ticketFilters.js         ticket filters shared by /tickets, CSV export and dashboard counts
   audit.js                 audit-log hash chain
   activity.js              logAction() used by routes
+  viewHelpers.js           icon(), timeAgo(), duration(), slaClock() for templates
 data/
   tickets.json             20 synthetic seed tickets with cluster labels
   eval-holdout.json        12 held-out tickets for a fair evaluation
@@ -288,6 +323,9 @@ scripts/
   smoke-test.js            npm test
   evaluate.js              npm run evaluate
 docs/evaluation-results.md latest evaluation output
-views/                   EJS templates
-public/css/style.css     styling
+views/                   EJS templates (partials/layout-top.ejs = app shell, partials/ticket-strip.ejs = flight strip)
+src/styles/app.css       Tailwind source: design tokens, components, dark mode
+public/css/app.css       compiled CSS (npm run build:css)
+public/js/app.js         theme toggle, mobile menu, "/" shortcut
+public/fonts/            IBM Plex (OFL licence)
 ```
