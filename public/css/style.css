@@ -335,3 +335,48 @@ button.secondary, .secondary {
   .ticket-table { display: block; overflow-x: auto; }
 }
 .ticket-table td:first-child { white-space: nowrap; }
+
+/* ---- Notifications, knowledge base, evaluation ---- */
+.notif-count {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  background: var(--urgent);
+  color: white;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+.notification-list { list-style: none; padding: 0; margin: 16px 0; }
+.notification-list li { border-bottom: 1px solid var(--border); }
+.notification-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 12px 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.notification-link:hover { background: var(--panel); }
+.notification-list li.read .notification-link { color: var(--muted); }
+.notification-link .small { margin-left: auto; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.header-actions { display: flex; align-items: center; gap: 16px; }
+.vote-form { display: flex; align-items: center; gap: 10px; }
+.actions a.secondary { text-decoration: none; display: inline-block; margin-right: 8px; }
+button.danger {
+  background: var(--panel);
+  border: 1px solid var(--error);
+  color: var(--error);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.eval-table tr:hover { cursor: default; background: none; }
+.eval-table tr.current td { color: var(--accent); font-weight: 600; }

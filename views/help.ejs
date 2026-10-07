@@ -26,7 +26,7 @@
       <% } %>
       <% result.articles.forEach(function(a) { %>
         <div class="help-article">
-          <strong><%= a.title %></strong>
+          <strong><a href="/kb/<%= a.articleId %>"><%= a.title %></a></strong>
           <p><%= a.body %></p>
         </div>
       <% }) %>

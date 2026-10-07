@@ -8,6 +8,7 @@ const { suggestCategory, suggestAssignee, agentWorkloads } = require('../lib/cat
 const { slaFor, timeInStatus } = require('../lib/sla');
 const assistant = require('../lib/assistant');
 const { logAction } = require('../lib/activity');
+const notify = require('../lib/notify');
 
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
@@ -90,6 +91,7 @@ router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
     categorySuggestion,
   });
   await logAction(user, 'ticket.create', { ticketId: ticket.ticketId, category: ticket.category, priority: ticket.priority });
+  await notify.ticketCreated(ticket, user);
 
   // Duplicate detection runs before redirecting so staff see results on
   // the first page load. It never throws, and its embeddings call has a
@@ -139,6 +141,7 @@ router.post('/:id/claim', requireRole('agent'), asyncHandler(async (req, res) =>
     return res.redirect(`/tickets/${req.params.id}?msg=already_claimed`);
   }
   await logAction(user, 'ticket.claim', { ticketId: ticket.ticketId });
+  await notify.ticketClaimed(ticket, user);
   res.redirect(`/tickets/${ticket.ticketId}`);
 }));
 
@@ -154,6 +157,7 @@ router.post('/:id/assign', requireRole('manager'), asyncHandler(async (req, res)
     return res.redirect(`/tickets/${req.params.id}?msg=already_claimed`);
   }
   await logAction(user, 'ticket.assign', { ticketId: ticket.ticketId, agentEmail: agent.email });
+  await notify.ticketAssigned(ticket, user);
   res.redirect(`/tickets/${ticket.ticketId}`);
 }));
 
@@ -180,6 +184,7 @@ router.post('/:id/status', requireRole('agent', 'manager'), asyncHandler(async (
   });
   if (!ticket) return res.redirect(`/tickets/${existing.ticketId}?msg=changed`);
   await logAction(user, 'ticket.status', { ticketId: ticket.ticketId, from: existing.status, to: status });
+  await notify.statusChanged(ticket, user, existing.status);
   res.redirect(`/tickets/${ticket.ticketId}`);
 }));
 
@@ -208,6 +213,7 @@ router.post('/:id/comment', requireLogin, asyncHandler(async (req, res) => {
     push: { comments: { authorEmail: user.email, authorName: user.name, authorRole: user.role, body, createdAt: now } },
   });
   await logAction(user, 'ticket.comment', { ticketId: ticket.ticketId });
+  await notify.commented(ticket, user);
   res.redirect(`/tickets/${ticket.ticketId}#activity`);
 }));
 

@@ -7,9 +7,12 @@
         <a href="/tickets/new">New ticket</a>
         <a href="/help">Help</a>
       <% } %>
+      <a href="/kb">Knowledge base</a>
       <% if (currentUser.role === 'manager') { %>
+        <a href="/evaluation">AI evaluation</a>
         <a href="/audit">Audit log</a>
       <% } %>
+      <a href="/notifications" class="notif-link">Notifications<% if (unreadCount) { %> <span class="notif-count"><%= unreadCount %></span><% } %></a>
       <span class="who"><%= currentUser.name %> <span class="role-badge"><%= currentUser.role.replace('_', ' ') %></span></span>
       <form action="/logout" method="POST" style="display:inline">
         <button type="submit" class="link-button">Log out</button>

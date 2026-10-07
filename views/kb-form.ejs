@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: article ? 'Edit article' : 'New article' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <p class="muted"><a href="<%= article ? '/kb/' + article.articleId : '/kb' %>">&larr; Back</a></p>
+    <h1><%= article ? 'Edit ' + article.articleId : 'New article' %></h1>
+    <% if (error) { %><p class="error"><%= error %></p><% } %>
+    <form action="<%= article ? '/kb/' + article.articleId : '/kb' %>" method="POST" class="auth-form">
+      <label>Title
+        <input type="text" name="title" required maxlength="150" value="<%= form.title || '' %>" />
+      </label>
+      <label>Category
+        <select name="category">
+          <% CATEGORIES.forEach(function(c) { %>
+            <option <%= form.category === c ? 'selected' : '' %>><%= c %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Body
+        <textarea name="body" rows="10" required maxlength="10000"><%= form.body || '' %></textarea>
+      </label>
+      <p class="muted small">Plain text. The help assistant searches title and body, so describe the symptom in the words a user would use.</p>
+      <button type="submit"><%= article ? 'Save changes' : 'Publish article' %></button>
+    </form>
+  </main>
+</body>
+</html>

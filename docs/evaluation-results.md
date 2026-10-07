@@ -10,6 +10,7 @@ Best F1 on this set: **0.74** at threshold 0.1.
 
 | Threshold | TP | FP | FN | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|
+| 0.05 | 11 | 21 | 2 | 34% | 85% | 0.49 |
 | 0.10 | 10 | 4 | 3 | 71% | 77% | 0.74 |
 | 0.15 | 7 | 1 | 6 | 88% | 54% | 0.67 |
 | 0.20 | 5 | 0 | 8 | 100% | 38% | 0.56 |
@@ -57,6 +58,8 @@ Best F1 on this set: **1.00** at threshold 0.88.
 | 0.86 | 13 | 4 | 0 | 76% | 100% | 0.87 |
 | 0.88 | 13 | 0 | 0 | 100% | 100% | 1.00 |
 | 0.90 | 11 | 0 | 2 | 100% | 85% | 0.92 |
+| 0.92 | 8 | 0 | 5 | 100% | 62% | 0.76 |
+| 0.94 | 4 | 0 | 9 | 100% | 31% | 0.47 |
 
 **Highest-scoring NON-duplicate pairs** (closest to being false positives):
 
@@ -76,7 +79,7 @@ Best F1 on this set: **1.00** at threshold 0.88.
 
 ## Held-out test (fixed thresholds, no tuning)
 
-12 new tickets, each compared against the 20 seed tickets. Pair-level scores over 240 pairs; "top match right" = the highest-scoring flagged match is in the expected cluster; "false alarm" = a ticket with no real duplicate got at least one match flagged.
+12 new tickets, each compared against the 20 seed tickets (240 pairs). "Top match right" = the highest-scoring flagged match is in the expected cluster; "false alarm" = a ticket with no real duplicate got at least one match flagged.
 
 - **Baseline** @ 0.1: precision 86%, recall 55%, F1 0.67; top match right 6/8; false alarms 1/4
 - **AI** @ 0.88: precision 100%, recall 91%, F1 0.95; top match right 8/8; false alarms 0/4
@@ -99,5 +102,6 @@ Best F1 on this set: **1.00** at threshold 0.88.
 ## Caveats
 
 - 20 tickets is a small, hand-made set. Treat these numbers as a sanity check of the approach, not as a general accuracy claim.
-- The thresholds were tuned on this same set, so the "best F1" figures are optimistic. A fair test needs fresh tickets written after the thresholds were fixed.
+- The thresholds were tuned on the seed set, so its "best F1" figures are optimistic. Quote the held-out numbers.
+- The held-out tickets were written by the same author as the seed set; tickets written by someone else would be a stronger test.
 - "Duplicate" here means same underlying issue. T-1019 (office wifi dropping) is deliberately close to the VPN cluster but labelled standalone: it is a hard negative.

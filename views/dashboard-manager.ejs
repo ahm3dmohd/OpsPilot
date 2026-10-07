@@ -8,7 +8,10 @@
   <main class="container">
     <div class="page-header">
       <h1>Overview</h1>
-      <span class="muted small">Data: <%= mode === 'db' ? 'MongoDB' : 'mock (in-memory)' %></span>
+      <div class="header-actions">
+        <span class="muted small">Data: <%= mode === 'db' ? 'MongoDB' : 'mock (in-memory)' %></span>
+        <a href="/reports/tickets.csv" class="button">Export CSV</a>
+      </div>
     </div>
 
     <div class="stat-grid">
@@ -95,6 +98,25 @@
       <li><span>&hellip; AI method skipped/failed</span><span class="count"><%= dupStats.aiSkipped %></span></li>
       <li><span>Category suggestions kept as-is</span><span class="count"><%= suggestionStats.accepted %> / <%= suggestionStats.total %></span></li>
     </ul>
+    <p class="small"><a href="/evaluation">See the measured AI-vs-baseline evaluation &rarr;</a></p>
+
+    <h2 class="mt">Knowledge base</h2>
+    <% if (kbStats.length === 0) { %>
+      <p class="muted">No articles yet.</p>
+    <% } else { %>
+      <table class="ticket-table">
+        <thead><tr><th>Article</th><th>Views</th><th>Helpful</th><th>Not helpful</th></tr></thead>
+        <tbody>
+          <% kbStats.forEach(function(a) { %>
+            <tr onclick="location.href='/kb/<%= a.articleId %>'">
+              <td><a href="/kb/<%= a.articleId %>"><%= a.articleId %></a> <%= a.title %></td>
+              <td><%= a.views %></td><td><%= a.helpful %></td><td><%= a.notHelpful %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <p class="small"><a href="/kb">Manage articles &rarr;</a></p>
+    <% } %>
 
     <h2 class="mt">All tickets</h2>
     <table class="ticket-table">

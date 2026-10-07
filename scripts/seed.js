@@ -4,7 +4,8 @@
 // mode. Mock mode (no MONGODB_URI) seeds itself in memory on server start
 // and needs no script.
 //
-// WARNING: wipes the existing users, tickets, counters and audit log first.
+// WARNING: wipes the existing users, tickets, articles, counters,
+// notifications and audit log first.
 
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -12,7 +13,9 @@ const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const Counter = require('../models/Counter');
 const AuditLog = require('../models/AuditLog');
-const { demoUsers, seedTickets, DEMO_PASSWORD } = require('../lib/seedData');
+const Notification = require('../models/Notification');
+const Article = require('../models/Article');
+const { demoUsers, seedTickets, seedArticles, DEMO_PASSWORD } = require('../lib/seedData');
 
 async function seed() {
   if (!process.env.MONGODB_URI) {
@@ -32,8 +35,14 @@ async function seed() {
   await Ticket.deleteMany({});
   await Ticket.insertMany(tickets);
   await Counter.deleteMany({});
+  const articles = seedArticles();
+  await Article.deleteMany({});
+  await Article.insertMany(articles);
   await Counter.create({ _id: 'ticket', seq: tickets.length });
+  await Counter.create({ _id: 'article', seq: articles.length });
   await AuditLog.deleteMany({});
+  await Notification.deleteMany({});
+  console.log(`Seeded ${articles.length} knowledge-base articles.`);
   console.log(`Seeded ${tickets.length} tickets. Embeddings and duplicate checks run when the server starts.`);
 
   await mongoose.disconnect();

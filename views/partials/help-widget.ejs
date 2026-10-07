@@ -50,7 +50,10 @@
           if (data.articles.length) {
             data.articles.forEach(function (a) {
               var box = el('div', '', 'help-article');
-              box.appendChild(el('strong', a.title));
+              var title = el('a', a.title);
+              title.href = '/kb/' + encodeURIComponent(a.articleId);
+              var strong = el('strong'); strong.appendChild(title);
+              box.appendChild(strong);
               box.appendChild(el('p', a.body, 'small'));
               out.appendChild(box);
             });

@@ -35,8 +35,8 @@ and fill in what you need. Every setting is explained in `.env.example`.
 | `npm run dev` | Start with auto-reload (nodemon) |
 | `npm start` | Start normally |
 | `npm run seed` | **Wipe** and load demo users + seed tickets into MongoDB (needs `MONGODB_URI`) |
-| `npm test` | End-to-end smoke test: starts the server and checks the workflow, the duplicate detection and every role's 403s (52 checks) |
-| `npm run evaluate` | AI-vs-baseline evaluation; writes `docs/evaluation-results.md` |
+| `npm test` | End-to-end smoke test: starts the server and checks the workflow, duplicate detection, notifications, knowledge base, CSV export and every role's 403s (87 checks) |
+| `npm run evaluate` | AI-vs-baseline evaluation; writes `docs/evaluation-results.md` (also viewable in the app at `/evaluation`) |
 
 ## Mock mode vs. real database
 
@@ -66,7 +66,11 @@ hanging).
 | Assign to an agent | ❌ | ❌ | ✅ |
 | Change status | ❌ | ✅ | ✅ |
 | See possible duplicates | ❌ (would leak others' tickets) | ✅ | ✅ |
-| Audit log | ❌ | ❌ | ✅ |
+| Read / search / rate KB articles | ✅ | ✅ | ✅ |
+| Write / edit KB articles | ❌ | ✅ | ✅ |
+| Delete KB articles | ❌ | ❌ | ✅ |
+| Notifications | own | own | own |
+| CSV export, AI evaluation page, audit log | ❌ | ❌ | ✅ |
 
 Real authentication: sessions (`express-session`) and bcrypt-hashed
 passwords. The session ID is regenerated on login. Cookies are `httpOnly`
@@ -126,7 +130,7 @@ fit OpenAI's model, not Gemini's. On the seed set, Gemini at 0.82 flagged
 16 false pairs. Both thresholds are now each method's best-F1 value on the
 seed set, so the two methods were tuned the same way.
 
-### Evaluation (`npm run evaluate`)
+### Evaluation (`npm run evaluate`, or `/evaluation` in the app)
 
 `data/tickets.json` is a synthetic set of 20 generic IT tickets with no
 real people or companies. It contains **deliberate near-duplicate
@@ -155,7 +159,10 @@ unrelated tickets. Each is scored at the fixed thresholds. Latest results:
 | Baseline | P 71%, R 77%, F1 0.74 | P 86%, R 55%, F1 **0.67**; top match right 6/8; false alarms 1/4 |
 
 The full tables, threshold sweeps and the hardest cases are in
-`docs/evaluation-results.md`. Read its caveats before quoting these
+`docs/evaluation-results.md`, and on the manager-only `/evaluation` page.
+Both come from the same code (`lib/evaluation.js`), and both run on the
+fixed data files rather than live tickets, so the numbers don't drift as
+the app is used. Read its caveats before quoting these
 numbers: the set is small, the AI threshold's margin on the seed set is
 only about 0.02, and the held-out tickets were written by the same author
 as the seed tickets.
@@ -168,9 +175,39 @@ as the seed tickets.
 | 2 | SLA breach prediction | **Built (rule-based)** | First-response and resolution targets per priority (`lib/sla.js`: Urgent 1h/4h, High 4h/24h, Medium 8h/72h, Low 24h/120h, wall-clock hours). A running clock that has used ≥75% of its target is flagged **at risk** before it breaches. Time in each status is tracked. The manager dashboard has an SLA watch list and the agent queue is sorted by urgency. This is a threshold rule, **not** a trained prediction model. |
 | 3 | Self-service help assistant | **Built (retrieval only)** | A "Need help?" widget for end users, a `/help` page (works without JavaScript), and suggestions on the new-ticket form. It finds the closest knowledge-base articles (`data/kb.json`, 10 articles) and the user's **own** related open tickets. It returns written articles word for word and generates no text, so it can't invent wrong instructions. It is not a conversational chatbot. |
 
+## Other features
+
+- **In-app notifications** (`lib/notify.js`), shown as a count in the nav
+  bar and on the `/notifications` page:
+  - claimed → requester
+  - assigned by a manager → requester + agent
+  - status changed / comment → requester + assignee
+  - new Urgent ticket → every agent
+
+  You're never notified about your own actions. A failed notification
+  never undoes the action that triggered it.
+- **Knowledge base** (`/kb`): browse and keyword search for everyone.
+  Agents and managers can write and edit articles; managers can delete
+  them. Each article tracks **views** (counted once per session) and
+  **"Was this helpful?" votes** (one per session). These are shown on
+  articles and on the manager dashboard as real data on which self-service
+  content works. The help assistant searches the same articles, so a new
+  article is suggested straight away.
+- **CSV export** (manager dashboard → Export CSV): one row per ticket with
+  status, timestamps, hours to first response and to resolution, SLA
+  states, both duplicate methods' matches and category-suggestion
+  acceptance. It is built to be analysed in Excel. Fields that would start
+  with `=`, `+`, `-` or `@` are prefixed with `'`, so a malicious ticket
+  title can't run as a spreadsheet formula (CSV injection).
+
+**Email notifications are not built.** They need an SMTP account and
+credentials, and outbound mail couldn't be tested from the development
+environment. Adding `nodemailer` behind an optional `SMTP_URL` inside
+`lib/notify.js`'s `send()` would be the place to do it.
+
 **Also added:** a hash-chained audit log (`/audit`, managers only) that
 records logins, sign-ups, ticket creation, duplicate checks, claims,
-assignments, status changes and comments. Each entry's hash covers the
+assignments, status changes, comments, KB edits and CSV exports. Each entry's hash covers the
 previous entry, and the page verifies the whole chain, so editing or
 deleting history is detectable. It works in both modes, and a failed audit
 write never blocks the user's action.
@@ -185,7 +222,8 @@ write never blocks the user's action.
   Production would use `connect-mongo`.
 - **No password reset, account management or admin UI** for creating staff
   accounts. Staff come from the seed, or from the demo sign-up switch.
-- **No email notifications, attachments, search or pagination.**
+- **No email notifications, file attachments, ticket search or
+  pagination.**
 - **SLA clocks use wall-clock hours**, not business hours or holidays.
 - **OpenAI support is coded but untested here**: `api.openai.com` is
   blocked in the development environment. Its threshold of 0.82 is
@@ -204,9 +242,11 @@ routes/
   auth.routes.js           login, register (End User only), logout
   dashboard.routes.js      role-based dashboards (end user / agent / manager)
   tickets.routes.js        create, suggest, view, claim, assign, status, comment, re-run duplicates
-  admin.routes.js          audit log, help assistant (/help, /help/ask)
+  admin.routes.js          audit log, AI evaluation page, CSV export, help assistant
+  kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
+  notifications.routes.js  notification list, open, mark all read
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Counter, AuditLog
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
@@ -217,12 +257,15 @@ lib/
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval
+  evaluation.js            AI-vs-baseline scoring (shared by npm run evaluate and /evaluation)
+  notify.js                who gets notified about what
+  csv.js                   CSV writer with formula-injection guard
   audit.js                 audit-log hash chain
   activity.js              logAction() used by routes
 data/
   tickets.json             20 synthetic seed tickets with cluster labels
   eval-holdout.json        12 held-out tickets for a fair evaluation
-  kb.json                  10 knowledge-base articles
+  kb.json                  10 starter knowledge-base articles (seeded into the KB)
 scripts/
   seed.js                  wipe + seed MongoDB
   smoke-test.js            npm test

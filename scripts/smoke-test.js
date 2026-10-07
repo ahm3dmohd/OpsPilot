@@ -148,6 +148,14 @@ async function main() {
       [manager, 'GET', '/tickets/new', 'manager -> new ticket form (by design)'],
       [manager, 'POST', '/tickets', 'manager -> create ticket'],
       [manager, 'POST', '/tickets/T-1001/claim', 'manager -> claim'],
+      [endUser, 'GET', '/kb/new', 'end user -> new KB article form'],
+      [endUser, 'POST', '/kb', 'end user -> create KB article'],
+      [endUser, 'POST', '/kb/KB-01', 'end user -> edit KB article'],
+      [agent, 'POST', '/kb/KB-01/delete', 'agent -> delete KB article'],
+      [endUser, 'GET', '/reports/tickets.csv', 'end user -> CSV export'],
+      [agent, 'GET', '/reports/tickets.csv', 'agent -> CSV export'],
+      [endUser, 'GET', '/evaluation', 'end user -> evaluation page'],
+      [agent, 'GET', '/evaluation', 'agent -> evaluation page'],
     ];
     for (const [c, method, url, label] of forbidden) {
       r = method === 'GET' ? await c.get(url) : await c.post(url, { body: 'x', status: 'Closed', title: 'x', description: 'x' });
@@ -212,12 +220,77 @@ async function main() {
     r = await agent.get('/tickets/T-9999');
     check('unknown ticket is a 404', r.status === 404);
 
+    console.log('\nNotifications');
+    r = await endUser.get('/notifications');
+    check('requester was notified of claim, comment and status changes',
+      r.text.includes('Adel Haddad is now working on your ticket') && r.text.includes('Adel Haddad commented on') && r.text.includes('from In Progress to Resolved'));
+    check('status notification names the real previous status', !r.text.includes('from Resolved to Resolved'));
+    check('requester is not notified about their own comment', !r.text.includes('Erin Carter commented'));
+    r = await agent.get('/notifications');
+    check('assignee was notified of the requester\'s reply', r.text.includes('Erin Carter commented on'));
+    r = await endUser.get('/dashboard');
+    const unread = parseInt((r.text.match(/notif-count">(\d+)/) || [])[1] || '0', 10);
+    check('nav shows an unread count', unread >= 3, `(got ${unread})`);
+    r = await endUser.get('/notifications');
+    const firstId = (r.text.match(/\/notifications\/([^/]+)\/open/) || [])[1];
+    r = await agent.post(`/notifications/${firstId}/open`);
+    check("can't open someone else's notification (404)", r.status === 404);
+    r = await endUser.post(`/notifications/${firstId}/open`);
+    check('opening a notification goes to its ticket', r.status === 302 && r.location.startsWith('/tickets/T-'));
+    await endUser.post('/notifications/read-all');
+    r = await endUser.get('/dashboard');
+    check('mark all read clears the badge', !r.text.includes('notif-count'));
+    r = await agent2.get('/notifications');
+    check('agent2 only got their own assignment, not the other ticket\'s events',
+      r.text.includes('assigned T-1017') && !r.text.includes('commented on') && !r.text.includes('is now working on'));
+    await endUser.post('/tickets', { title: 'Whole office offline', description: 'No network anywhere on floor 2', category: 'Network', priority: 'Urgent' });
+    r = await agent2.get('/notifications');
+    check('Urgent ticket notifies every agent', r.text.includes('New Urgent ticket'));
+
+    console.log('\nKnowledge base');
+    r = await endUser.get('/kb');
+    check('end user can browse the KB', r.status === 200 && r.text.includes('VPN keeps disconnecting'));
+    check('end user does not see view/vote stats', !r.text.includes('<th>Views</th>'));
+    r = await endUser.get('/kb?q=printer');
+    check('KB search finds the printer article', r.text.includes('Printer shows offline') && !r.text.includes('/kb/KB-01'));
+    r = await endUser.get('/kb/KB-03');
+    check('end user can read an article', r.status === 200 && r.text.includes('Was this helpful?'));
+    await endUser.get('/kb/KB-03');
+    r = await endUser.post('/kb/KB-03/vote', { helpful: 'yes' });
+    check('end user can vote', r.location.includes('msg=thanks'));
+    await endUser.post('/kb/KB-03/vote', { helpful: 'yes' });
+    r = await agent.post('/kb', { title: 'Teams calls echo', body: 'If people hear an echo of themselves on Teams calls, use a headset instead of laptop speakers, or turn on noise suppression in Teams settings.', category: 'Software' });
+    const newKb = (r.location.match(/KB-\d+/) || [])[0];
+    check('agent can publish an article', r.status === 302 && !!newKb, r.location);
+    r = await agent.post(`/kb/${newKb}`, { title: 'Echo on Teams calls', body: 'If people hear an echo of themselves on Teams calls, use a headset instead of laptop speakers.', category: 'Software' });
+    check('agent can edit it', r.status === 302);
+    r = await manager.get('/dashboard');
+    check('manager dashboard shows KB stats (1 view, 1 helpful vote, refresh/double-vote not counted)', /KB-03<\/a> Printer shows offline<\/td>\s*<td>1<\/td><td>1<\/td><td>0<\/td>/.test(r.text));
+    const kbHelp = await endUser.json('/help/ask', { question: 'people hear an echo on my teams call' });
+    check('help assistant finds the new article', kbHelp.body.articles.some((a) => a.articleId === newKb));
+    r = await manager.post(`/kb/${newKb}/delete`);
+    check('manager can delete it', r.location.includes('msg=deleted'));
+    r = await endUser.get(`/kb/${newKb}`);
+    check('deleted article is gone (404)', r.status === 404);
+
+    console.log('\nCSV export + evaluation page');
+    await endUser.post('/tickets', { title: '=HYPERLINK("http://evil.example","click")', description: 'formula injection test', category: 'General', priority: 'Low' });
+    r = await manager.get('/reports/tickets.csv');
+    check('manager downloads CSV', r.status === 200 && r.text.includes('"ticketId","title"'));
+    const csvRows = r.text.trim().split('\r\n');
+    check('CSV has one row per ticket (+ header)', csvRows.length >= 24, `(got ${csvRows.length})`);
+    check('CSV neutralises formulas', r.text.includes(`"'=HYPERLINK(""http://evil.example"",""click"")"`));
+    check('CSV includes duplicate + SLA columns', r.text.includes('"aiMatches"') && r.text.includes('"slaOverall"'));
+    r = await manager.get('/evaluation');
+    check('manager sees the evaluation page', r.status === 200 && r.text.includes('Held-out test') && r.text.includes('F1'));
+    if (aiOn) check('evaluation includes the AI method', r.text.includes('AI @'));
+
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');
-    check('audit log lists actions', r.status === 200 && r.text.includes('ticket.create') && r.text.includes('ticket.claim') && r.text.includes('ticket.status') && r.text.includes('ticket.comment'));
+    check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });
-    check('help assistant returns the password article', help.status === 200 && help.body.articles.some((a) => a.id === 'KB-02'));
+    check('help assistant returns the password article', help.status === 200 && help.body.articles.some((a) => a.articleId === 'KB-02'));
     r = await endUser.get('/help?q=printer+offline');
     check('help page works without JavaScript', r.status === 200 && r.text.includes('Printer shows offline'));
 

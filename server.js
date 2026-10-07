@@ -54,8 +54,18 @@ app.use(
 
 // Make the logged-in user available to every view without passing it
 // explicitly from each route.
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   res.locals.currentUser = req.session.user || null;
+  res.locals.unreadCount = 0;
+  // Unread badge for the nav bar. A failure here (e.g. DB hiccup) just
+  // hides the badge rather than breaking the page.
+  if (req.session.user && store.getMode()) {
+    try {
+      res.locals.unreadCount = await store.countUnreadNotifications(req.session.user.email);
+    } catch (err) {
+      console.error('Unread count failed:', err.message);
+    }
+  }
   next();
 });
 
@@ -80,7 +90,7 @@ async function connectDatabase() {
   try {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
     store.useDatabase();
-    await store.syncTicketCounter();
+    await store.syncCounters();
     console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
@@ -117,6 +127,8 @@ app.use('/', require('./routes/auth.routes'));
 app.use('/', require('./routes/dashboard.routes'));
 app.use('/', require('./routes/admin.routes'));
 app.use('/tickets', require('./routes/tickets.routes'));
+app.use('/kb', require('./routes/kb.routes'));
+app.use('/notifications', require('./routes/notifications.routes'));
 
 // ---- 404 ----
 app.use((req, res) => {

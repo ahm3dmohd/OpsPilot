@@ -67,6 +67,8 @@ router.get('/dashboard', requireLogin, asyncHandler(async (req, res) => {
         total: suggested.length,
         accepted: suggested.filter((t) => t.categorySuggestion.accepted).length,
       },
+      // Most-viewed articles first.
+      kbStats: (await store.listArticles()).sort((a, b) => b.views - a.views || a.articleId.localeCompare(b.articleId)).slice(0, 5),
       tickets: all,
       mode: store.getMode(),
     });

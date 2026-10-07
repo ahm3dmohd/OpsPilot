@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: article.title }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <p class="muted"><a href="/kb">&larr; Knowledge base</a></p>
+    <h1><%= article.title %></h1>
+    <p class="muted small"><%= article.articleId %> &middot; <%= article.category %> &middot; updated <%= new Date(article.updatedAt).toLocaleDateString() %></p>
+    <div class="description"><%= article.body %></div>
+
+    <div class="panel mt">
+      <% if (flash === 'thanks') { %>
+        <p class="ok-text">Thanks for the feedback.</p>
+      <% } else if (voted) { %>
+        <p class="muted small">You've already rated this article.</p>
+      <% } else { %>
+        <form action="/kb/<%= article.articleId %>/vote" method="POST" class="vote-form">
+          <span>Was this helpful?</span>
+          <button type="submit" name="helpful" value="yes" class="secondary small-button">Yes</button>
+          <button type="submit" name="helpful" value="no" class="secondary small-button">No</button>
+        </form>
+      <% } %>
+      <% if (currentUser.role === 'end_user') { %>
+        <p class="small">Still stuck? <a href="/tickets/new">File a ticket</a>.</p>
+      <% } %>
+    </div>
+
+    <% if (currentUser.role !== 'end_user') { %>
+      <p class="muted small"><%= article.views %> views &middot; <%= article.helpful %> found it helpful &middot; <%= article.notHelpful %> didn't</p>
+      <div class="actions">
+        <a href="/kb/<%= article.articleId %>/edit" class="secondary">Edit</a>
+        <% if (currentUser.role === 'manager') { %>
+          <form action="/kb/<%= article.articleId %>/delete" method="POST" onsubmit="return confirm('Delete this article?');">
+            <button type="submit" class="danger">Delete</button>
+          </form>
+        <% } %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

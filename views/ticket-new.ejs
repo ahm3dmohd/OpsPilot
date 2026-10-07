@@ -21,7 +21,7 @@
         <% }) %>
         <% help.articles.forEach(function(a) { %>
           <div class="help-article">
-            <strong><%= a.title %></strong>
+            <strong><a href="/kb/<%= a.articleId %>" target="_blank"><%= a.title %></a></strong>
             <p class="small"><%= a.body %></p>
           </div>
         <% }) %>
