@@ -3,23 +3,9 @@ const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, asyncHandler } = require('../middleware/auth');
 const { STATUSES, PRIORITIES, CATEGORIES } = require('../lib/constants');
-const { slaFor } = require('../lib/sla');
-const { agentWorkloads } = require('../lib/categorize');
+const { withSla, applyFilters, stat } = require('../lib/ticketFilters');
 
 const SLA_ORDER = { breached: 0, at_risk: 1, ok: 2, met: 3 };
-
-function countBy(tickets, key, keys) {
-  const counts = Object.fromEntries((keys || []).map((k) => [k, 0]));
-  tickets.forEach((t) => {
-    counts[t[key]] = (counts[t[key]] || 0) + 1;
-  });
-  return counts;
-}
-
-// Attach SLA state to each ticket for the tables.
-function withSla(tickets, now = new Date()) {
-  return tickets.map((t) => ({ ...t, sla: slaFor(t, now) }));
-}
 
 router.get('/', requireLogin, (req, res) => res.redirect('/dashboard'));
 
@@ -42,31 +28,36 @@ router.get('/dashboard', requireLogin, asyncHandler(async (req, res) => {
 
   if (user.role === 'manager') {
     const all = withSla(await store.listTickets({}));
-    const active = all.filter((t) => t.status === 'Open' || t.status === 'In Progress');
-    const atRisk = active
+    // Every number on the dashboard is { count, href }: the count is the
+    // length of exactly the list its link opens (see lib/ticketFilters.js).
+    const s = (filters) => stat(all, filters);
+    const agents = await store.listUsers({ role: 'agent' });
+    const atRisk = applyFilters(all, { state: 'active' })
       .filter((t) => t.sla.overall === 'at_risk' || t.sla.overall === 'breached')
       .sort((a, b) => SLA_ORDER[a.sla.overall] - SLA_ORDER[b.sla.overall]);
-    const withDupResults = all.filter((t) => t.duplicates);
-    const suggested = all.filter((t) => t.categorySuggestion);
     return res.render('dashboard-manager', {
-      total: all.length,
-      byStatus: countBy(all, 'status', STATUSES),
-      byPriority: countBy(all, 'priority', PRIORITIES),
-      byCategory: countBy(all, 'category', CATEGORIES),
-      workloads: await agentWorkloads(),
-      unassigned: active.filter((t) => !t.assigneeEmail).length,
+      total: s({}),
+      byStatus: STATUSES.map((v) => ({ label: v, ...s({ status: v }) })),
+      unassigned: s({ state: 'active', assignee: 'unassigned' }),
+      slaCards: ['breached', 'at_risk', 'ok'].map((v) => ({ key: v, ...s({ state: 'active', sla: v }) })),
+      byCategory: CATEGORIES.map((v) => ({ label: v, ...s({ category: v }) })),
+      byPriority: PRIORITIES.map((v) => ({ label: v, ...s({ priority: v }) })),
+      // Workload = In Progress tickets, the same definition the assignee
+      // suggestion uses; lightest first.
+      workloads: agents
+        .map((a) => ({ label: a.name, ...s({ assignee: a.email, status: 'In Progress' }) }))
+        .sort((a, b) => a.count - b.count || a.label.localeCompare(b.label)),
       atRisk,
-      slaCounts: countBy(active.map((t) => ({ s: t.sla.overall })), 's', ['breached', 'at_risk', 'ok']),
-      dupStats: {
-        checked: withDupResults.length,
-        aiFlagged: withDupResults.filter((t) => t.duplicates.ai.matches.length).length,
-        aiSkipped: withDupResults.filter((t) => t.duplicates.ai.status !== 'ok').length,
-        baselineFlagged: withDupResults.filter((t) => t.duplicates.baseline.matches.length).length,
-      },
-      suggestionStats: {
-        total: suggested.length,
-        accepted: suggested.filter((t) => t.categorySuggestion.accepted).length,
-      },
+      dupStats: [
+        ['Tickets checked for duplicates', 'checked'],
+        ['\u2026 flagged by AI method', 'ai'],
+        ['\u2026 flagged by keyword baseline', 'baseline'],
+        ['\u2026 flagged by both', 'both'],
+        ['\u2026 AI only (baseline missed)', 'ai_only'],
+        ['\u2026 baseline only (AI missed)', 'baseline_only'],
+        ['\u2026 AI method skipped/failed', 'ai_skipped'],
+      ].map(([label, v]) => ({ label, ...s({ dup: v }) })),
+      suggestionStats: { accepted: s({ suggestion: 'accepted' }), total: s({ suggestion: 'any' }) },
       // Most-viewed articles first.
       kbStats: (await store.listArticles()).sort((a, b) => b.views - a.views || a.articleId.localeCompare(b.articleId)).slice(0, 5),
       tickets: all,

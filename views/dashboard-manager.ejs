@@ -14,28 +14,34 @@
       </div>
     </div>
 
+    <p class="muted small">Every number is a link to the tickets behind it.</p>
     <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-number"><%= total %></div>
+      <a class="stat-card" href="<%= total.href %>">
+        <div class="stat-number"><%= total.count %></div>
         <div class="stat-label">Total tickets</div>
-      </div>
-      <% Object.keys(byStatus).forEach(function(s) { %>
-        <div class="stat-card">
-          <div class="stat-number"><%= byStatus[s] %></div>
-          <div class="stat-label"><%= s %></div>
-        </div>
+      </a>
+      <% byStatus.forEach(function(x) { %>
+        <a class="stat-card" href="<%= x.href %>">
+          <div class="stat-number"><%= x.count %></div>
+          <div class="stat-label"><%= x.label %></div>
+        </a>
       <% }) %>
-      <div class="stat-card">
-        <div class="stat-number"><%= unassigned %></div>
+      <a class="stat-card" href="<%= unassigned.href %>">
+        <div class="stat-number"><%= unassigned.count %></div>
         <div class="stat-label">Active, unassigned</div>
-      </div>
+      </a>
     </div>
 
     <h2>SLA watch</h2>
+    <p class="muted small">Active tickets only (Open or In Progress).</p>
     <div class="stat-grid">
-      <div class="stat-card sla-card-breached"><div class="stat-number"><%= slaCounts.breached %></div><div class="stat-label">Breached</div></div>
-      <div class="stat-card sla-card-at_risk"><div class="stat-number"><%= slaCounts.at_risk %></div><div class="stat-label">At risk (&ge;75% of target used)</div></div>
-      <div class="stat-card"><div class="stat-number"><%= slaCounts.ok %></div><div class="stat-label">On track</div></div>
+      <% var slaText = { breached: 'Breached', at_risk: 'At risk (&ge;75% of target used)', ok: 'On track' }; %>
+      <% slaCards.forEach(function(c) { %>
+        <a class="stat-card sla-card-<%= c.key %>" href="<%= c.href %>">
+          <div class="stat-number"><%= c.count %></div>
+          <div class="stat-label"><%- slaText[c.key] %></div>
+        </a>
+      <% }) %>
     </div>
     <% if (atRisk.length) { %>
       <table class="ticket-table">
@@ -63,16 +69,16 @@
       <div>
         <h2>By category</h2>
         <ul class="bar-list">
-          <% Object.keys(byCategory).forEach(function(c) { %>
-            <li><span><%= c %></span><span class="count"><%= byCategory[c] %></span></li>
+          <% byCategory.forEach(function(x) { %>
+            <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
           <% }) %>
         </ul>
       </div>
       <div>
         <h2>By priority</h2>
         <ul class="bar-list">
-          <% Object.keys(byPriority).forEach(function(p) { %>
-            <li><span><%= p %></span><span class="count"><%= byPriority[p] %></span></li>
+          <% byPriority.forEach(function(x) { %>
+            <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
           <% }) %>
         </ul>
       </div>
@@ -82,8 +88,8 @@
           <p class="muted">No agents yet.</p>
         <% } else { %>
           <ul class="bar-list">
-            <% workloads.forEach(function(a) { %>
-              <li><span><%= a.name %></span><span class="count"><%= a.active %> active</span></li>
+            <% workloads.forEach(function(x) { %>
+              <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %> in progress</span></a></li>
             <% }) %>
           </ul>
         <% } %>
@@ -92,11 +98,13 @@
 
     <h2 class="mt">AI features</h2>
     <ul class="bar-list">
-      <li><span>Tickets checked for duplicates</span><span class="count"><%= dupStats.checked %></span></li>
-      <li><span>&hellip; flagged by AI method</span><span class="count"><%= dupStats.aiFlagged %></span></li>
-      <li><span>&hellip; flagged by keyword baseline</span><span class="count"><%= dupStats.baselineFlagged %></span></li>
-      <li><span>&hellip; AI method skipped/failed</span><span class="count"><%= dupStats.aiSkipped %></span></li>
-      <li><span>Category suggestions kept as-is</span><span class="count"><%= suggestionStats.accepted %> / <%= suggestionStats.total %></span></li>
+      <% dupStats.forEach(function(x) { %>
+        <li><a href="<%= x.href %>"><span><%= x.label %></span><span class="count"><%= x.count %></span></a></li>
+      <% }) %>
+      <li>
+        <span>Category suggestions kept as-is</span>
+        <span class="count"><a href="<%= suggestionStats.accepted.href %>"><%= suggestionStats.accepted.count %></a> / <a href="<%= suggestionStats.total.href %>"><%= suggestionStats.total.count %></a></span>
+      </li>
     </ul>
     <p class="small"><a href="/evaluation">See the measured AI-vs-baseline evaluation &rarr;</a></p>
 
@@ -110,7 +118,7 @@
           <% kbStats.forEach(function(a) { %>
             <tr onclick="location.href='/kb/<%= a.articleId %>'">
               <td><a href="/kb/<%= a.articleId %>"><%= a.articleId %></a> <%= a.title %></td>
-              <td><%= a.views %></td><td><%= a.helpful %></td><td><%= a.notHelpful %></td>
+              <td><a href="/kb/<%= a.articleId %>"><%= a.views %></a></td><td><a href="/kb/<%= a.articleId %>"><%= a.helpful %></a></td><td><a href="/kb/<%= a.articleId %>"><%= a.notHelpful %></a></td>
             </tr>
           <% }) %>
         </tbody>
@@ -118,7 +126,10 @@
       <p class="small"><a href="/kb">Manage articles &rarr;</a></p>
     <% } %>
 
-    <h2 class="mt">All tickets</h2>
+    <div class="page-header mt">
+      <h2>All tickets</h2>
+      <a href="/tickets" class="small">Filter &amp; search &rarr;</a>
+    </div>
     <table class="ticket-table">
       <thead>
         <tr><th>ID</th><th>Title</th><th>Requester</th><th>Assignee</th><th>Priority</th><th>Status</th><th>SLA</th></tr>

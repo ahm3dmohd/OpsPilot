@@ -4,9 +4,9 @@ const store = require('../lib/store');
 const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
 const assistant = require('../lib/assistant');
 const { runEvaluation } = require('../lib/evaluation');
-const { slaFor } = require('../lib/sla');
 const { toCsv } = require('../lib/csv');
 const { logAction } = require('../lib/activity');
+const filtering = require('../lib/ticketFilters');
 
 // ---- Audit log (managers only) ----
 router.get('/audit', requireRole('manager'), asyncHandler(async (req, res) => {
@@ -21,12 +21,15 @@ router.get('/evaluation', requireRole('manager'), asyncHandler(async (req, res) 
   res.render('evaluation', { r: await runEvaluation() });
 }));
 
-// ---- CSV export of all tickets (managers only) ----
+// ---- CSV export (managers only) ----
+// Takes the same filters as the /tickets list, so "Export these" on a
+// filtered list downloads exactly those rows. No filters = all tickets.
 const hoursBetween = (a, b) => (a && b ? Math.round(((new Date(b) - new Date(a)) / 3600000) * 10) / 10 : '');
 
 router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (req, res) => {
-  const tickets = await store.listTickets({});
   const now = new Date();
+  const filters = filtering.parseFilters(req.query);
+  const tickets = filtering.applyFilters(filtering.withSla(await store.listTickets({}), now), filters);
   const headers = [
     'ticketId', 'title', 'description', 'category', 'priority', 'status',
     'requesterName', 'requesterEmail', 'assigneeName', 'assigneeEmail',
@@ -36,7 +39,7 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
     'categorySuggested', 'categorySuggestionMethod', 'categorySuggestionAccepted',
   ];
   const rows = tickets.map((t) => {
-    const sla = slaFor(t, now);
+    const { sla } = t;
     const d = t.duplicates;
     const s = t.categorySuggestion;
     const list = (r) => (r && r.status === 'ok' ? r.matches.map((m) => `${m.ticketId} (${m.score})`).join('; ') : '');
@@ -53,7 +56,7 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
   const stamp = now.toISOString().slice(0, 10);
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="opspilot-tickets-${stamp}.csv"`);
-  await logAction(req.session.user, 'report.export', { rows: rows.length });
+  await logAction(req.session.user, 'report.export', { rows: rows.length, filters });
   res.send(toCsv(headers, rows));
 }));
 

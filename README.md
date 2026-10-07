@@ -35,7 +35,7 @@ and fill in what you need. Every setting is explained in `.env.example`.
 | `npm run dev` | Start with auto-reload (nodemon) |
 | `npm start` | Start normally |
 | `npm run seed` | **Wipe** and load demo users + seed tickets into MongoDB (needs `MONGODB_URI`) |
-| `npm test` | End-to-end smoke test: starts the server and checks the workflow, duplicate detection, notifications, knowledge base, CSV export and every role's 403s (87 checks) |
+| `npm test` | End-to-end smoke test: starts the server and checks the workflow, duplicate detection, notifications, knowledge base, CSV export and every role's 403s (97 checks) |
 | `npm run evaluate` | AI-vs-baseline evaluation; writes `docs/evaluation-results.md` (also viewable in the app at `/evaluation`) |
 
 ## Mock mode vs. real database
@@ -70,6 +70,7 @@ hanging).
 | Write / edit KB articles | ❌ | ✅ | ✅ |
 | Delete KB articles | ❌ | ❌ | ✅ |
 | Notifications | own | own | own |
+| Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
 | CSV export, AI evaluation page, audit log | ❌ | ❌ | ✅ |
 
 Real authentication: sessions (`express-session`) and bcrypt-hashed
@@ -177,6 +178,20 @@ as the seed tickets.
 
 ## Other features
 
+- **Clickable dashboard numbers + filtered ticket list** (`/tickets`):
+  - Every number on the manager dashboard links to the tickets behind it
+    (statuses, SLA cards, categories, priorities, agent workload,
+    duplicate-detection counts, category suggestions).
+  - The list filters by status, active, priority, category, assignee, SLA
+    state, duplicate result and category suggestion, plus free-text search
+    and sorting. Filters show as removable chips and live in the URL, so a
+    view can be bookmarked or shared.
+  - The dashboard computes each number with the same filter code
+    (`lib/ticketFilters.js`) as the list it opens, so a number always
+    equals its list. `npm test` follows every dashboard link to check
+    this.
+  - "Export these as CSV" downloads just the filtered tickets.
+
 - **In-app notifications** (`lib/notify.js`), shown as a count in the nav
   bar and on the `/notifications` page:
   - claimed → requester
@@ -245,6 +260,7 @@ routes/
   admin.routes.js          audit log, AI evaluation page, CSV export, help assistant
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
+  (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
 models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog
 lib/
@@ -260,6 +276,7 @@ lib/
   evaluation.js            AI-vs-baseline scoring (shared by npm run evaluate and /evaluation)
   notify.js                who gets notified about what
   csv.js                   CSV writer with formula-injection guard
+  ticketFilters.js         ticket filters shared by /tickets, CSV export and dashboard counts
   audit.js                 audit-log hash chain
   activity.js              logAction() used by routes
 data/
