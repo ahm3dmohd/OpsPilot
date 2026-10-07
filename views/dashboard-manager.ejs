@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Manager overview' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container">
+    <h1>Overview</h1>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-number"><%= total %></div>
+        <div class="stat-label">Total tickets</div>
+      </div>
+      <% Object.keys(byStatus).forEach(function(s) { %>
+        <div class="stat-card">
+          <div class="stat-number"><%= byStatus[s] %></div>
+          <div class="stat-label"><%= s %></div>
+        </div>
+      <% }) %>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h2>By category</h2>
+        <% if (Object.keys(byCategory).length === 0) { %>
+          <p class="muted">No tickets yet.</p>
+        <% } else { %>
+          <ul class="bar-list">
+            <% Object.keys(byCategory).forEach(function(c) { %>
+              <li><span><%= c %></span><span class="count"><%= byCategory[c] %></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+      <div>
+        <h2>Agent workload</h2>
+        <% if (Object.keys(byAgent).length === 0) { %>
+          <p class="muted">No tickets claimed yet.</p>
+        <% } else { %>
+          <ul class="bar-list">
+            <% Object.keys(byAgent).forEach(function(a) { %>
+              <li><span><%= a %></span><span class="count"><%= byAgent[a] %></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+    </div>
+
+    <h2 class="mt">All tickets</h2>
+    <table class="ticket-table">
+      <thead>
+        <tr><th>ID</th><th>Title</th><th>Requester</th><th>Assignee</th><th>Priority</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <% tickets.forEach(function(t) { %>
+          <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
+            <td><%= t.ticketId %></td>
+            <td><%= t.title %></td>
+            <td><%= t.requesterName %></td>
+            <td><%= t.assigneeName || '—' %></td>
+            <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
+            <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

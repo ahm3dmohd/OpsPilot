@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Agent queue' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container">
+    <h1>Open queue</h1>
+    <% if (queue.length === 0) { %>
+      <p class="muted">No open tickets right now.</p>
+    <% } else { %>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Category</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          <% queue.forEach(function(t) { %>
+            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
+              <td><%= t.ticketId %></td>
+              <td><%= t.title %></td>
+              <td><%= t.requesterName %></td>
+              <td><%= t.category %></td>
+              <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <h1 class="mt">My tickets</h1>
+    <% if (mine.length === 0) { %>
+      <p class="muted">You haven't claimed any tickets yet.</p>
+    <% } else { %>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <% mine.forEach(function(t) { %>
+            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
+              <td><%= t.ticketId %></td>
+              <td><%= t.title %></td>
+              <td><%= t.requesterName %></td>
+              <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+</body>
+</html>

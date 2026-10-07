@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Log in' }) %>
+</head>
+<body>
+  <main class="auth-container">
+    <h1>OpsPilot</h1>
+    <p class="subtitle">Log in to your HelpDesk account.</p>
+
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <form action="/login" method="POST" class="auth-form">
+      <label>Email
+        <input type="email" name="email" required autofocus />
+      </label>
+      <label>Password
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit">Log in</button>
+    </form>
+
+    <p class="muted">No account? <a href="/register">Register</a></p>
+
+    <div class="demo-box">
+      <strong>Demo logins</strong> (password: <code>password123</code>)
+      <ul>
+        <li>enduser@opspilot.test &mdash; End User</li>
+        <li>agent@opspilot.test &mdash; Agent</li>
+        <li>manager@opspilot.test &mdash; Manager</li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>

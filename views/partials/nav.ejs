@@ -1,0 +1,14 @@
+<nav class="navbar">
+  <a href="/dashboard" class="brand">OpsPilot</a>
+  <div class="links">
+    <% if (currentUser) { %>
+      <span class="who"><%= currentUser.name %> <span class="role-badge"><%= currentUser.role.replace('_', ' ') %></span></span>
+      <% if (currentUser.role === 'end_user') { %>
+        <a href="/tickets/new">New ticket</a>
+      <% } %>
+      <form action="/logout" method="POST" style="display:inline">
+        <button type="submit" class="link-button">Log out</button>
+      </form>
+    <% } %>
+  </div>
+</nav>

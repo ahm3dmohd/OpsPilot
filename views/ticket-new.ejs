@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'New ticket' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <h1>New ticket</h1>
+
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <form action="/tickets" method="POST" class="auth-form">
+      <label>Title
+        <input type="text" name="title" required autofocus placeholder="Short summary of the issue" />
+      </label>
+      <label>Description
+        <textarea name="description" rows="5" required placeholder="What's happening? What have you already tried?"></textarea>
+      </label>
+      <label>Category
+        <select name="category">
+          <option>Network</option>
+          <option>Hardware</option>
+          <option>Software</option>
+          <option>Account</option>
+          <option>Email</option>
+          <option>General</option>
+        </select>
+      </label>
+      <label>Priority
+        <select name="priority">
+          <option>Low</option>
+          <option selected>Medium</option>
+          <option>High</option>
+          <option>Urgent</option>
+        </select>
+      </label>
+      <button type="submit">Submit ticket</button>
+    </form>
+  </main>
+</body>
+</html>

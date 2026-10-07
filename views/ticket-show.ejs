@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: ticket.ticketId }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <p class="muted"><a href="/dashboard">&larr; Back to dashboard</a></p>
+
+    <div class="page-header">
+      <h1><%= ticket.ticketId %>: <%= ticket.title %></h1>
+    </div>
+
+    <div class="ticket-meta">
+      <span class="pill pill-priority-<%= ticket.priority.toLowerCase() %>"><%= ticket.priority %></span>
+      <span class="pill pill-status-<%= ticket.status.replace(' ', '-').toLowerCase() %>"><%= ticket.status %></span>
+      <span class="muted"><%= ticket.category %></span>
+    </div>
+
+    <p><%= ticket.description %></p>
+
+    <p class="muted small">
+      Requested by <%= ticket.requesterName %>
+      <% if (ticket.assigneeName) { %> &middot; Assigned to <%= ticket.assigneeName %><% } %>
+    </p>
+
+    <% if (currentUser.role === 'agent') { %>
+      <div class="actions">
+        <% if (!ticket.assigneeEmail) { %>
+          <form action="/tickets/<%= ticket.ticketId %>/claim" method="POST">
+            <button type="submit">Claim this ticket</button>
+          </form>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (currentUser.role === 'agent' || currentUser.role === 'manager') { %>
+      <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="inline-form">
+        <label>Change status
+          <select name="status">
+            <% STATUSES.forEach(function(s) { %>
+              <option value="<%= s %>" <%= s === ticket.status ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button type="submit">Update</button>
+      </form>
+    <% } %>
+
+    <h2 class="mt">Activity</h2>
+    <% if (ticket.comments.length === 0) { %>
+      <p class="muted">No comments yet.</p>
+    <% } else { %>
+      <ul class="comment-list">
+        <% ticket.comments.forEach(function(c) { %>
+          <li>
+            <strong><%= c.authorName %></strong>
+            <span class="muted small"><%= new Date(c.createdAt).toLocaleString() %></span>
+            <p><%= c.body %></p>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+
+    <form action="/tickets/<%= ticket.ticketId %>/comment" method="POST" class="auth-form">
+      <label>Add a comment
+        <textarea name="body" rows="3" required></textarea>
+      </label>
+      <button type="submit">Post comment</button>
+    </form>
+  </main>
+</body>
+</html>
