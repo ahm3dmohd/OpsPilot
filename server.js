@@ -33,19 +33,32 @@ app.use((req, res, next) => {
 });
 
 // ---- Database ----
-// Optional for now: with no MONGODB_URI set, the app runs in mock-data
-// mode (lib/store.js reads/writes in-memory instead of Mongo), which is
-// enough to log in and use the whole app with zero setup. Set MONGODB_URI
-// in .env once you're ready to wire up real persistence.
-if (process.env.MONGODB_URI) {
-  mongoose
-    .connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB connected'))
-    .catch((err) => console.error('MongoDB connection error:', err.message));
-} else {
-  console.log('No MONGODB_URI set - running in mock-data mode (no DB).');
+// Optional: with no MONGODB_URI set, or if the database can't be reached,
+// the app runs in mock-data mode (lib/store.js reads/writes in-memory
+// instead of Mongo), which is enough to log in and use the whole app with
+// zero setup. The server only starts listening once the mode is decided,
+// so no request ever lands on an empty mock store.
+function useMockData(reason) {
+  console.log(`${reason} - running in mock-data mode (no DB).`);
   store.initMockData();
   console.log('Demo logins (password123): enduser@opspilot.test / agent@opspilot.test / manager@opspilot.test');
+}
+
+async function connectDatabase() {
+  if (!process.env.MONGODB_URI) {
+    useMockData('No MONGODB_URI set');
+    return;
+  }
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err.message);
+    // Stop mongoose retrying in the background, otherwise a late connect
+    // would silently switch the store from mock data to the real DB mid-run.
+    await mongoose.disconnect().catch(() => {});
+    useMockData('Could not reach MongoDB');
+  }
 }
 
 // ---- Routes ----
@@ -62,6 +75,8 @@ app.use((req, res) => {
   res.status(404).render('404', { url: req.originalUrl });
 });
 
-app.listen(PORT, () => {
-  console.log(`OpsPilot running on http://localhost:${PORT}`);
+connectDatabase().then(() => {
+  app.listen(PORT, () => {
+    console.log(`OpsPilot running on http://localhost:${PORT}`);
+  });
 });

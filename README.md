@@ -30,7 +30,8 @@ npm run dev
 ```
 
 Runs on `http://localhost:3000` with **no `.env` file required**. With no
-`MONGODB_URI` set, the app runs in mock-data mode: users and tickets live
+`MONGODB_URI` set - or if the database it points to can't be reached
+within 5 seconds - the app runs in mock-data mode: users and tickets live
 in memory, seeded automatically on startup.
 
 **Demo logins (mock mode), password `password123` for all three:**
