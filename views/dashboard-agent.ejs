@@ -7,21 +7,23 @@
   <%- include('partials/nav') %>
   <main class="container">
     <h1>Open queue</h1>
+    <p class="muted small">Sorted by SLA urgency. "Dup?" shows how many possible duplicates each method found (AI &middot; keyword).</p>
     <% if (queue.length === 0) { %>
       <p class="muted">No open tickets right now.</p>
     <% } else { %>
       <table class="ticket-table">
         <thead>
-          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Category</th><th>Priority</th></tr>
+          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Category</th><th>Priority</th><th>SLA</th></tr>
         </thead>
         <tbody>
           <% queue.forEach(function(t) { %>
             <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><%= t.ticketId %></td>
-              <td><%= t.title %></td>
+              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
+              <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
               <td><%= t.requesterName %></td>
               <td><%= t.category %></td>
               <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
+              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
             </tr>
           <% }) %>
         </tbody>
@@ -34,15 +36,16 @@
     <% } else { %>
       <table class="ticket-table">
         <thead>
-          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Status</th></tr>
+          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Status</th><th>SLA</th></tr>
         </thead>
         <tbody>
           <% mine.forEach(function(t) { %>
             <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><%= t.ticketId %></td>
-              <td><%= t.title %></td>
+              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
+              <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
               <td><%= t.requesterName %></td>
               <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
+              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
             </tr>
           <% }) %>
         </tbody>

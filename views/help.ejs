@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Help' }) %>
+</head>
+<body>
+  <%- include('partials/nav') %>
+  <main class="container narrow">
+    <h1>Help</h1>
+    <p class="muted">Describe your problem. We'll check the knowledge base and your open tickets before you file a new one.</p>
+    <form action="/help" method="GET" class="inline-form">
+      <input type="text" name="q" value="<%= q %>" maxlength="500" required placeholder="e.g. my VPN keeps disconnecting" class="grow" />
+      <button type="submit">Search</button>
+    </form>
+
+    <% if (result) { %>
+      <% if (result.ownTickets.length) { %>
+        <h2 class="mt">You already have a related ticket</h2>
+        <% result.ownTickets.forEach(function(t) { %>
+          <p><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %>: <%= t.title %></a> <span class="muted small">(<%= t.status %>)</span></p>
+        <% }) %>
+      <% } %>
+      <h2 class="mt">Help articles</h2>
+      <% if (result.articles.length === 0) { %>
+        <p class="muted">No matching article.</p>
+      <% } %>
+      <% result.articles.forEach(function(a) { %>
+        <div class="help-article">
+          <strong><%= a.title %></strong>
+          <p><%= a.body %></p>
+        </div>
+      <% }) %>
+      <p class="mt"><% if (currentUser.role === 'end_user') { %><a href="/tickets/new" class="button">Still stuck? File a ticket</a><% } %></p>
+      <p class="muted small">Matched by <%= result.method === 'ai' ? 'AI (embeddings)' : 'keywords' %>.</p>
+    <% } %>
+  </main>
+</body>
+</html>

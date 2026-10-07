@@ -3,14 +3,16 @@
 // Requires MONGODB_URI to be set in .env - this script is for real-DB
 // mode. Mock mode (no MONGODB_URI) seeds itself in memory on server start
 // and needs no script.
+//
+// WARNING: wipes the existing users, tickets, counters and audit log first.
 
 require('dotenv').config();
-const fs = require('fs');
-const path = require('path');
-const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
+const Counter = require('../models/Counter');
+const AuditLog = require('../models/AuditLog');
+const { demoUsers, seedTickets, DEMO_PASSWORD } = require('../lib/seedData');
 
 async function seed() {
   if (!process.env.MONGODB_URI) {
@@ -18,32 +20,27 @@ async function seed() {
     process.exit(1);
   }
 
-  await mongoose.connect(process.env.MONGODB_URI);
+  await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
   console.log('Connected. Seeding...');
 
-  // Demo users
+  const users = demoUsers();
   await User.deleteMany({});
-  const demoPasswordHash = bcrypt.hashSync('password123', 10);
-  await User.insertMany([
-    { name: 'Erin Carter', email: 'enduser@opspilot.test', passwordHash: demoPasswordHash, role: 'end_user' },
-    { name: 'Adel Haddad', email: 'agent@opspilot.test', passwordHash: demoPasswordHash, role: 'agent' },
-    { name: 'Mona Saleh', email: 'manager@opspilot.test', passwordHash: demoPasswordHash, role: 'manager' },
-  ]);
-  console.log('Seeded 3 demo users (password: password123).');
+  await User.insertMany(users);
+  console.log(`Seeded ${users.length} demo users (password: ${DEMO_PASSWORD}).`);
 
-  // Tickets
-  const tickets = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '../data/tickets.json'), 'utf8')
-  );
+  const tickets = seedTickets();
   await Ticket.deleteMany({});
   await Ticket.insertMany(tickets);
-  console.log(`Seeded ${tickets.length} tickets.`);
+  await Counter.deleteMany({});
+  await Counter.create({ _id: 'ticket', seq: tickets.length });
+  await AuditLog.deleteMany({});
+  console.log(`Seeded ${tickets.length} tickets. Embeddings and duplicate checks run when the server starts.`);
 
   await mongoose.disconnect();
   console.log('Done.');
 }
 
 seed().catch((err) => {
-  console.error(err);
+  console.error(err.message);
   process.exit(1);
 });

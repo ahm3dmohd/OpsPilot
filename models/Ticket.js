@@ -1,14 +1,22 @@
 const mongoose = require('mongoose');
-
-const STATUSES = ['Open', 'In Progress', 'Resolved', 'Closed'];
-const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
+const { STATUSES, PRIORITIES } = require('../lib/constants');
 
 const commentSchema = new mongoose.Schema(
   {
     authorEmail: { type: String, required: true },
     authorName: { type: String, required: true },
+    authorRole: { type: String },
     body: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const statusHistorySchema = new mongoose.Schema(
+  {
+    status: { type: String, enum: STATUSES, required: true },
+    at: { type: Date, default: Date.now },
+    byEmail: { type: String },
   },
   { _id: false }
 );
@@ -25,13 +33,22 @@ const ticketSchema = new mongoose.Schema({
   assigneeEmail: { type: String, default: null },
   assigneeName: { type: String, default: null },
   comments: { type: [commentSchema], default: [] },
-  embedding: { type: [Number], default: [] }, // filled in once Week 3 embeds it
-  similarTicketIds: { type: [String], default: [] }, // flagged by Week 3's detection
+  // Every status change with its timestamp - drives time-in-status and SLA.
+  statusHistory: { type: [statusHistorySchema], default: [] },
+  firstResponseAt: { type: Date, default: null }, // first claim/comment/status change by staff
+  resolvedAt: { type: Date, default: null },
+  // AI duplicate detection: the ticket's own embedding (and which model
+  // produced it, so vectors from different models are never compared)...
+  embedding: { type: [Number], default: [] },
+  embeddingModel: { type: String, default: null },
+  // ...and the stored results of BOTH methods, kept side by side:
+  // { ai: {...}, baseline: {...} } - see lib/duplicates.js for the shape.
+  duplicates: { type: mongoose.Schema.Types.Mixed, default: null },
+  // What auto-categorization suggested at creation, kept so the report can
+  // measure how often users accepted it.
+  categorySuggestion: { type: mongoose.Schema.Types.Mixed, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
-
-ticketSchema.statics.STATUSES = STATUSES;
-ticketSchema.statics.PRIORITIES = PRIORITIES;
 
 module.exports = mongoose.model('Ticket', ticketSchema);
