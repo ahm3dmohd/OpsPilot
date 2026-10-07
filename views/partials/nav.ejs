@@ -7,6 +7,9 @@
         <a href="/tickets/new">New ticket</a>
         <a href="/help">Help</a>
       <% } %>
+      <% if (currentUser.role !== 'end_user') { %>
+        <a href="/tickets">Tickets</a>
+      <% } %>
       <a href="/kb">Knowledge base</a>
       <% if (currentUser.role === 'manager') { %>
         <a href="/evaluation">AI evaluation</a>

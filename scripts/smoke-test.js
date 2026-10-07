@@ -155,6 +155,8 @@ async function main() {
       [endUser, 'GET', '/reports/tickets.csv', 'end user -> CSV export'],
       [agent, 'GET', '/reports/tickets.csv', 'agent -> CSV export'],
       [endUser, 'GET', '/evaluation', 'end user -> evaluation page'],
+      [endUser, 'GET', '/tickets', 'end user -> filtered ticket list'],
+      [endUser, 'GET', '/tickets?status=Open', 'end user -> filtered ticket list with filters'],
       [agent, 'GET', '/evaluation', 'agent -> evaluation page'],
     ];
     for (const [c, method, url, label] of forbidden) {
@@ -265,7 +267,7 @@ async function main() {
     r = await agent.post(`/kb/${newKb}`, { title: 'Echo on Teams calls', body: 'If people hear an echo of themselves on Teams calls, use a headset instead of laptop speakers.', category: 'Software' });
     check('agent can edit it', r.status === 302);
     r = await manager.get('/dashboard');
-    check('manager dashboard shows KB stats (1 view, 1 helpful vote, refresh/double-vote not counted)', /KB-03<\/a> Printer shows offline<\/td>\s*<td>1<\/td><td>1<\/td><td>0<\/td>/.test(r.text));
+    check('manager dashboard shows KB stats (1 view, 1 helpful vote, refresh/double-vote not counted)', /KB-03<\/a> Printer shows offline<\/td>\s*<td><a[^>]*>1<\/a><\/td><td><a[^>]*>1<\/a><\/td><td><a[^>]*>0<\/a><\/td>/.test(r.text));
     const kbHelp = await endUser.json('/help/ask', { question: 'people hear an echo on my teams call' });
     check('help assistant finds the new article', kbHelp.body.articles.some((a) => a.articleId === newKb));
     r = await manager.post(`/kb/${newKb}/delete`);
@@ -284,6 +286,35 @@ async function main() {
     r = await manager.get('/evaluation');
     check('manager sees the evaluation page', r.status === 200 && r.text.includes('Held-out test') && r.text.includes('F1'));
     if (aiOn) check('evaluation includes the AI method', r.text.includes('AI @'));
+
+    console.log('\nClickable dashboard numbers');
+    r = await manager.get('/dashboard');
+    // Every link to /tickets?... on the dashboard, with the number it shows.
+    const links = [...r.text.matchAll(/<a[^>]*href="(\/tickets(?:\?[^"]*)?)"[^>]*>([\s\S]*?)<\/a>/g)]
+      .map((m) => ({ href: m[1].replace(/&amp;/g, '&'), shown: (m[2].replace(/<[^>]+>/g, ' ').match(/\d+/) || [])[0] }))
+      .filter((l) => l.shown !== undefined);
+    check('dashboard has a link for every number (25+)', links.length >= 25, `(found ${links.length})`);
+    const mismatches = [];
+    for (const l of links) {
+      const page = await manager.get(l.href);
+      const listed = (page.text.match(/<h1>(\d+) ticket/) || [])[1];
+      if (page.status !== 200 || listed !== l.shown) mismatches.push(`${l.href} shows ${l.shown}, list has ${listed} (HTTP ${page.status})`);
+    }
+    check('every dashboard number equals the length of the list it opens', mismatches.length === 0, mismatches.join('; '));
+    r = await manager.get('/tickets?state=active&sla=breached');
+    check('SLA breached list shows only breached tickets', !/sla-(ok|met|at_risk)"/.test(r.text) && r.text.includes('SLA breached'));
+    check('filters show as removable chips', r.text.includes('class="chip"') && r.text.includes('href="/tickets?state=active"'));
+    r = await manager.get('/tickets?status=Bogus&priority=Nope&assignee=%3Cscript%3E');
+    check('invalid filter values are ignored, not errors', r.status === 200 && !r.text.includes('class="chip"') && !r.text.includes('<script>'));
+    r = await manager.get('/tickets?q=printer');
+    check('search filter works', r.text.includes('Printer on 3rd floor') && !r.text.includes('VPN keeps dropping'));
+    r = await agent.get('/tickets?priority=High');
+    check('agents can use the filtered list too', r.status === 200 && r.text.includes('Priority: High'));
+    const filteredList = await manager.get('/tickets?category=Network');
+    const filteredCount = (filteredList.text.match(/<h1>(\d+) ticket/) || [])[1];
+    r = await manager.get('/reports/tickets.csv?category=Network');
+    const csvLines = r.text.trim().split('\r\n').length - 1;
+    check('filtered CSV export has exactly the listed rows', String(csvLines) === filteredCount && !r.text.includes('"Hardware"'), `(csv ${csvLines}, list ${filteredCount})`);
 
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');

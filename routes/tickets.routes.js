@@ -9,6 +9,7 @@ const { slaFor, timeInStatus } = require('../lib/sla');
 const assistant = require('../lib/assistant');
 const { logAction } = require('../lib/activity');
 const notify = require('../lib/notify');
+const filtering = require('../lib/ticketFilters');
 
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
@@ -47,6 +48,39 @@ function readForm(body) {
     priority: PRIORITIES.includes(body.priority) ? body.priority : 'Medium',
   };
 }
+
+// ---- Filtered ticket list (agents + managers) ----
+// Every number on the manager dashboard links here with its filters in
+// the query string, e.g. /tickets?state=active&sla=breached.
+const SORTS = {
+  newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  oldest: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+  sla: (a, b) => ({ breached: 0, at_risk: 1, ok: 2, met: 3 }[a.sla.overall] - { breached: 0, at_risk: 1, ok: 2, met: 3 }[b.sla.overall]),
+  priority: (a, b) => PRIORITIES.indexOf(b.priority) - PRIORITIES.indexOf(a.priority),
+};
+
+router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+  const filters = filtering.parseFilters(req.query);
+  const sort = SORTS[req.query.sort] ? req.query.sort : 'newest';
+  const [all, agents] = await Promise.all([store.listTickets({}), store.listUsers({ role: 'agent' })]);
+  const tickets = filtering.applyFilters(filtering.withSla(all), filters).sort(SORTS[sort]);
+  const nameOf = (email) => (agents.find((a) => a.email === email) || {}).name || email;
+  res.render('tickets-list', {
+    tickets,
+    total: all.length,
+    filters,
+    sort,
+    chips: filtering.chips(filters, { nameOf }),
+    query: filtering.toQuery(filters),
+    agents,
+    STATUSES,
+    PRIORITIES,
+    CATEGORIES,
+    SLA_LABELS: filtering.SLA_LABELS,
+    DUP_LABELS: filtering.DUP_LABELS,
+    SUGGESTION_LABELS: filtering.SUGGESTION_LABELS,
+  });
+}));
 
 // ---- Create (end users only - managers have no creation UI by design) ----
 router.get('/new', requireRole('end_user'), (req, res) => renderNew(res));
