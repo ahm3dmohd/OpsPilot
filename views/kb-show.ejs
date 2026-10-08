@@ -1,44 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: article.title }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container narrow">
-    <p class="muted"><a href="/kb">&larr; Knowledge base</a></p>
-    <h1><%= article.title %></h1>
-    <p class="muted small"><%= article.articleId %> &middot; <%= article.category %> &middot; updated <%= new Date(article.updatedAt).toLocaleDateString() %></p>
-    <div class="description"><%= article.body %></div>
+<%- include('partials/layout-top', { title: article.title }) %>
+<% var staff = currentUser.role !== 'end_user'; %>
 
-    <div class="panel mt">
-      <% if (flash === 'thanks') { %>
-        <p class="ok-text">Thanks for the feedback.</p>
-      <% } else if (voted) { %>
-        <p class="muted small">You've already rated this article.</p>
-      <% } else { %>
-        <form action="/kb/<%= article.articleId %>/vote" method="POST" class="vote-form">
-          <span>Was this helpful?</span>
-          <button type="submit" name="helpful" value="yes" class="secondary small-button">Yes</button>
-          <button type="submit" name="helpful" value="no" class="secondary small-button">No</button>
+<a href="/kb" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> Knowledge base</a>
+
+<article class="mt-4 max-w-3xl">
+  <p class="flex flex-wrap items-center gap-3 text-sm text-muted">
+    <span class="callsign rounded border border-line bg-surface px-2 py-0.5"><%= article.articleId %></span>
+    <span><%= article.category %></span>
+    <span title="<%= fullDate(article.updatedAt) %>">Updated <%= timeAgo(article.updatedAt) %></span>
+  </p>
+  <h1 class="mt-3 text-[28px] leading-tight"><%= article.title %></h1>
+  <div class="prose-text mt-5 text-[16px]"><%= article.body %></div>
+
+  <section class="panel panel-body mt-8">
+    <% if (flash === 'thanks') { %>
+      <p class="flex items-center gap-2 text-ok"><%- icon('check') %> Thanks, your feedback was recorded.</p>
+    <% } else if (voted) { %>
+      <p class="text-sm text-muted">You've already rated this article.</p>
+    <% } else { %>
+      <form action="/kb/<%= article.articleId %>/vote" method="POST" class="flex flex-wrap items-center gap-3">
+        <span class="font-medium">Was this helpful?</span>
+        <button type="submit" name="helpful" value="yes" class="btn-secondary btn-sm">Yes</button>
+        <button type="submit" name="helpful" value="no" class="btn-secondary btn-sm">No</button>
+      </form>
+    <% } %>
+    <% if (!staff) { %><p class="mt-3 text-sm text-ink-soft">Still not working? <a href="/tickets/new">Report a problem</a>.</p><% } %>
+  </section>
+
+  <% if (staff) { %>
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <a href="/kb/<%= article.articleId %>/edit" class="btn-secondary"><%- icon('pencil') %> Edit</a>
+      <% if (currentUser.role === 'manager') { %>
+        <form action="/kb/<%= article.articleId %>/delete" method="POST" onsubmit="return confirm('Delete this article? This cannot be undone.');">
+          <button type="submit" class="btn-danger"><%- icon('trash-2') %> Delete</button>
         </form>
       <% } %>
-      <% if (currentUser.role === 'end_user') { %>
-        <p class="small">Still stuck? <a href="/tickets/new">File a ticket</a>.</p>
-      <% } %>
+      <span class="text-sm text-muted"><%= article.views %> views, <%= article.helpful %> found it helpful, <%= article.notHelpful %> didn't</span>
     </div>
+  <% } %>
+</article>
 
-    <% if (currentUser.role !== 'end_user') { %>
-      <p class="muted small"><%= article.views %> views &middot; <%= article.helpful %> found it helpful &middot; <%= article.notHelpful %> didn't</p>
-      <div class="actions">
-        <a href="/kb/<%= article.articleId %>/edit" class="secondary">Edit</a>
-        <% if (currentUser.role === 'manager') { %>
-          <form action="/kb/<%= article.articleId %>/delete" method="POST" onsubmit="return confirm('Delete this article?');">
-            <button type="submit" class="danger">Delete</button>
-          </form>
-        <% } %>
-      </div>
-    <% } %>
-  </main>
-</body>
-</html>
+<%- include('partials/layout-bottom') %>

@@ -12,6 +12,7 @@ const store = require('./lib/store');
 const embeddings = require('./lib/embeddings');
 const { detectDuplicates, ensureEmbeddings } = require('./lib/duplicates');
 const { DEMO_USERS, DEMO_PASSWORD } = require('./lib/seedData');
+const viewHelpers = require('./lib/viewHelpers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ if (!process.env.SESSION_SECRET) {
 // ---- Middleware ----
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+Object.assign(app.locals, viewHelpers); // icon(), timeAgo(), ... in every template
 if (isProduction) app.set('trust proxy', 1); // so secure cookies work behind a hosting proxy
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 app.use(express.json({ limit: '50kb' }));
@@ -56,6 +58,7 @@ app.use(
 // explicitly from each route.
 app.use(async (req, res, next) => {
   res.locals.currentUser = req.session.user || null;
+  res.locals.currentPath = req.path;
   res.locals.unreadCount = 0;
   // Unread badge for the nav bar. A failure here (e.g. DB hiccup) just
   // hides the badge rather than breaking the page.

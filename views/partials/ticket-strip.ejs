@@ -1,0 +1,27 @@
+<%# One ticket as a flight strip. Expects: t (ticket with .sla), and
+    optional showRequester / showAssignee (default true). The whole strip is
+    one link to the ticket. %>
+<% var clock = slaClock(t.sla); var closed = t.status === 'Resolved' || t.status === 'Closed'; %>
+<a href="/tickets/<%= t.ticketId %>" class="strip strip-<%= slug(t.priority) %> <%= closed ? 'strip-closed' : '' %>" data-ticket="<%= t.ticketId %>" data-sla="<%= t.sla.overall %>">
+  <span class="callsign"><%= t.ticketId %></span>
+  <span class="min-w-0">
+    <span class="block truncate font-medium text-ink"><%= t.title %></span>
+    <span class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+      <span><%= t.category %></span>
+      <% if (typeof showRequester === 'undefined' || showRequester) { %><span><%= t.requesterName %></span><% } %>
+      <% if (typeof showAssignee === 'undefined' || showAssignee) { %>
+        <span><%= t.assigneeName ? 'with ' + t.assigneeName : 'unassigned' %></span>
+      <% } %>
+      <span title="<%= fullDate(t.createdAt) %>"><%= timeAgo(t.createdAt) %></span>
+      <%- include('dup-badge', { t: t }) %>
+    </span>
+  </span>
+  <span class="col-start-2 flex items-center gap-1.5 sm:col-start-auto">
+    <span class="pill-<%= slug(t.priority) %>"><%= t.priority %></span>
+    <span class="pill-<%= slug(t.status) %> pill-status-<%= slug(t.status) %>"><%= t.status %></span>
+  </span>
+  <span class="col-start-2 text-[13px] sm:col-start-auto sm:text-right">
+    <span class="block font-medium tabular-nums sla-<%= t.sla.overall %> <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink-soft', met: 'text-ok' }[clock.state] %>"><%= clock.text %></span>
+    <% if (clock.label) { %><span class="block text-xs text-muted"><%= clock.label %></span><% } %>
+  </span>
+</a>

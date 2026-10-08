@@ -1,0 +1,85 @@
+<%# App shell: sidebar + top bar. Each page includes this, then its content,
+    then partials/layout-bottom. Expects: title. %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('head', { title: title }) %>
+</head>
+<body>
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 btn-primary">Skip to content</a>
+  <div class="lg:grid lg:grid-cols-[15rem_1fr] min-h-screen">
+
+    <%# ---- Sidebar ---- %>
+    <aside id="sidebar" data-open="false"
+      class="fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full flex-col border-r border-line bg-surface transition-transform data-[open=true]:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
+      <a href="/dashboard" class="flex items-center gap-2.5 px-5 py-5 no-underline hover:no-underline">
+        <span class="flex size-8 items-center justify-center rounded-md bg-brand text-white dark:text-canvas"><%- icon('ticket', 'size-[18px]') %></span>
+        <span class="text-[17px] font-semibold tracking-tight text-ink">OpsPilot</span>
+      </a>
+
+      <% var path = currentPath || ''; var on = function(p) { return path === p || path.indexOf(p + '/') === 0 ? 'aria-current="page"' : ''; }; %>
+      <nav class="flex flex-1 flex-col gap-0.5 px-3" aria-label="Main">
+        <a href="/dashboard" class="nav-link" <%- on('/dashboard') %>><%- icon('layout-dashboard') %> Dashboard</a>
+        <% if (currentUser.role !== 'end_user') { %>
+          <a href="/tickets" class="nav-link" <%- path === '/tickets' ? 'aria-current="page"' : '' %>><%- icon('inbox') %> Tickets</a>
+        <% } else { %>
+          <a href="/tickets/new" class="nav-link" <%- on('/tickets/new') %>><%- icon('plus') %> New ticket</a>
+          <a href="/help" class="nav-link" <%- on('/help') %>><%- icon('life-buoy') %> Get help</a>
+        <% } %>
+        <a href="/kb" class="nav-link" <%- on('/kb') %>><%- icon('book-open') %> Knowledge base</a>
+        <a href="/notifications" class="nav-link" <%- on('/notifications') %>>
+          <%- icon('bell') %> Notifications
+          <% if (unreadCount) { %><span class="ml-auto rounded-full bg-danger px-1.5 text-xs font-semibold text-white notif-count"><%= unreadCount %></span><% } %>
+        </a>
+        <% if (currentUser.role === 'manager') { %>
+          <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Reports</p>
+          <a href="/evaluation" class="nav-link" <%- on('/evaluation') %>><%- icon('flask-conical') %> AI evaluation</a>
+          <a href="/audit" class="nav-link" <%- on('/audit') %>><%- icon('shield-check') %> Audit log</a>
+          <a href="/reports/tickets.csv" class="nav-link"><%- icon('download') %> Export CSV</a>
+        <% } %>
+      </nav>
+
+      <div class="border-t border-line p-3">
+        <div class="flex items-center gap-3 px-2 py-2">
+          <span class="avatar"><%= initials(currentUser.name) %></span>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-ink"><%= currentUser.name %></p>
+            <p class="text-xs text-muted"><%= { end_user: 'End user', agent: 'Agent', manager: 'Manager' }[currentUser.role] %></p>
+          </div>
+        </div>
+        <form action="/logout" method="POST">
+          <button type="submit" class="nav-link w-full cursor-pointer"><%- icon('log-out') %> Log out</button>
+        </form>
+      </div>
+    </aside>
+    <div id="sidebarScrim" class="fixed inset-0 z-30 hidden bg-ink/40 lg:hidden"></div>
+
+    <%# ---- Main column ---- %>
+    <div class="flex min-w-0 flex-col">
+      <header class="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur sm:px-8">
+        <button type="button" id="menuButton" class="btn-ghost -ml-2 px-2 lg:hidden" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><%- icon('menu', 'size-5') %></button>
+        <% if (currentUser.role !== 'end_user') { %>
+          <form action="/tickets" method="GET" role="search" class="relative flex-1 max-w-md">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted"><%- icon('search') %></span>
+            <input id="globalSearch" type="search" name="q" placeholder="Search tickets" aria-label="Search tickets" class="input py-1.5 pl-9 pr-9" />
+            <kbd class="pointer-events-none absolute inset-y-0 right-2 my-auto hidden h-5 rounded border border-line px-1.5 font-mono text-[11px] leading-5 text-muted sm:block">/</kbd>
+          </form>
+        <% } else { %>
+          <form action="/kb" method="GET" role="search" class="relative flex-1 max-w-md">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted"><%- icon('search') %></span>
+            <input id="globalSearch" type="search" name="q" placeholder="Search help articles" aria-label="Search help articles" class="input py-1.5 pl-9 pr-9" />
+            <kbd class="pointer-events-none absolute inset-y-0 right-2 my-auto hidden h-5 rounded border border-line px-1.5 font-mono text-[11px] leading-5 text-muted sm:block">/</kbd>
+          </form>
+        <% } %>
+        <div class="ml-auto flex items-center gap-1">
+          <button type="button" id="themeToggle" class="btn-ghost px-2" aria-label="Switch to dark mode">
+            <span class="dark:hidden"><%- icon('moon') %></span><span class="hidden dark:inline"><%- icon('sun') %></span>
+          </button>
+          <a href="/notifications" class="btn-ghost relative px-2" aria-label="Notifications<%= unreadCount ? ', ' + unreadCount + ' unread' : '' %>">
+            <%- icon('bell') %>
+            <% if (unreadCount) { %><span class="absolute top-1 right-1 size-2 rounded-full bg-danger"></span><% } %>
+          </a>
+        </div>
+      </header>
+
+      <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">

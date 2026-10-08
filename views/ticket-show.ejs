@@ -1,121 +1,69 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: ticket.ticketId }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container narrow">
-    <p class="muted"><a href="/dashboard">&larr; Back to dashboard</a></p>
+<%- include('partials/layout-top', { title: ticket.ticketId + ' ' + ticket.title }) %>
 
-    <% const flashes = { already_claimed: 'Someone else claimed this ticket first.', bad_transition: 'That status change isn\'t allowed from the current status.', changed: 'The ticket changed while you were looking at it - check the new status and try again.' }; %>
-    <% if (flash && flashes[flash]) { %>
-      <p class="error"><%= flashes[flash] %></p>
-    <% } %>
+<% var flashes = {
+     already_claimed: 'Someone else claimed this ticket first.',
+     bad_transition: "That status change isn't allowed from the current status.",
+     changed: 'The ticket changed while you were looking at it. Check the new status and try again.'
+   }; %>
 
-    <div class="page-header">
-      <h1><%= ticket.ticketId %>: <%= ticket.title %></h1>
-    </div>
+<a href="<%= currentUser.role === 'end_user' ? '/dashboard' : '/tickets' %>" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> <%= currentUser.role === 'end_user' ? 'My tickets' : 'All tickets' %></a>
 
-    <div class="ticket-meta">
-      <span class="pill pill-priority-<%= ticket.priority.toLowerCase() %>"><%= ticket.priority %></span>
-      <span class="pill pill-status-<%= ticket.status.replace(' ', '-').toLowerCase() %>"><%= ticket.status %></span>
-      <%- include('partials/sla-pill', { sla }) %>
-      <span class="muted"><%= ticket.category %></span>
-    </div>
+<% if (flash && flashes[flash]) { %><p class="notice-error mt-4" role="alert"><%= flashes[flash] %></p><% } %>
 
-    <p class="description"><%= ticket.description %></p>
+<div class="mt-4 flex flex-wrap items-start gap-x-4 gap-y-2">
+  <span class="callsign mt-1.5 rounded border border-line bg-surface px-2 py-0.5"><%= ticket.ticketId %></span>
+  <h1 class="min-w-0 flex-1 text-[26px] leading-tight"><%= ticket.title %></h1>
+</div>
+<div class="mt-3 flex flex-wrap items-center gap-2">
+  <span class="pill-<%= slug(ticket.priority) %>"><%= ticket.priority %></span>
+  <span class="pill-<%= slug(ticket.status) %> pill-status-<%= slug(ticket.status) %>"><%= ticket.status %></span>
+  <%- include('partials/sla-pill', { sla: sla }) %>
+  <span class="text-sm text-muted">Reported by <%= ticket.requesterName %> <span title="<%= fullDate(ticket.createdAt) %>"><%= timeAgo(ticket.createdAt) %></span></span>
+</div>
 
-    <p class="muted small">
-      Requested by <%= ticket.requesterName %> &middot; <%= new Date(ticket.createdAt).toLocaleString() %>
-      <% if (ticket.assigneeName) { %> &middot; Assigned to <%= ticket.assigneeName %><% } %>
-    </p>
-
-    <div class="panel sla-panel">
-      <div>
-        <div class="small muted">First response</div>
-        <div><%= sla.firstResponse.running ? (sla.firstResponse.remainingHours >= 0 ? sla.firstResponse.remainingHours + 'h left' : Math.abs(sla.firstResponse.remainingHours) + 'h overdue') : (sla.firstResponse.state === 'met' ? 'Met' : 'Missed') %></div>
-        <div class="small muted">target <%= sla.firstResponse.targetHours %>h</div>
-      </div>
-      <div>
-        <div class="small muted">Resolution</div>
-        <div><%= sla.resolution.running ? (sla.resolution.remainingHours >= 0 ? sla.resolution.remainingHours + 'h left' : Math.abs(sla.resolution.remainingHours) + 'h overdue') : (sla.resolution.state === 'met' ? 'Met' : 'Missed') %></div>
-        <div class="small muted">target <%= sla.resolution.targetHours %>h</div>
-      </div>
-      <div>
-        <div class="small muted">Time in status</div>
-        <div class="small"><% Object.keys(timeInStatus).filter(function(s) { return timeInStatus[s] > 0; }).forEach(function(s) { %><%= s %>: <%= timeInStatus[s] %>h<br><% }) %></div>
-      </div>
-    </div>
-
-    <% if (currentUser.role === 'agent' && !ticket.assigneeEmail) { %>
-      <div class="actions">
-        <form action="/tickets/<%= ticket.ticketId %>/claim" method="POST">
-          <button type="submit">Claim this ticket</button>
-        </form>
-      </div>
-    <% } %>
-
-    <% if (suggestedAssignee) { %>
-      <p class="small muted">Suggested assignee (lowest workload): <strong><%= suggestedAssignee.name %></strong>, <%= suggestedAssignee.active %> active ticket<%= suggestedAssignee.active === 1 ? '' : 's' %>.</p>
-    <% } %>
-
-    <% if (agents.length) { %>
-      <form action="/tickets/<%= ticket.ticketId %>/assign" method="POST" class="inline-form">
-        <label>Assign to
-          <select name="agentEmail">
-            <% agents.forEach(function(a, i) { %>
-              <option value="<%= a.email %>" <%= i === 0 ? 'selected' : '' %>><%= a.name %> (<%= a.active %> active)</option>
-            <% }) %>
-          </select>
-        </label>
-        <button type="submit">Assign</button>
-      </form>
-    <% } %>
-
-    <% if ((currentUser.role === 'agent' || currentUser.role === 'manager') && nextStatuses.length) { %>
-      <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="inline-form">
-        <label>Move to
-          <select name="status">
-            <% nextStatuses.forEach(function(s) { %>
-              <option value="<%= s %>"><%= s %></option>
-            <% }) %>
-          </select>
-        </label>
-        <button type="submit">Update status</button>
-      </form>
-    <% } %>
+<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+  <%# ================= Main column ================= %>
+  <div class="min-w-0 space-y-6">
+    <section class="panel panel-body">
+      <h2 class="sr-only">Description</h2>
+      <p class="prose-text"><%= ticket.description %></p>
+    </section>
 
     <% if (showDuplicates) { %>
-      <section id="duplicates" class="panel mt">
-        <div class="page-header">
-          <h2>Possible duplicates</h2>
+      <section id="duplicates" class="panel overflow-hidden" aria-labelledby="dupHeading">
+        <div class="panel-head">
+          <div>
+            <h2 id="dupHeading">Possible duplicates</h2>
+            <% if (ticket.duplicates) { %>
+              <p class="text-xs text-muted">Two independent methods, side by side. Checked against <%= ticket.duplicates.comparedAgainst %> other tickets <span title="<%= fullDate(ticket.duplicates.baseline.ranAt) %>"><%= timeAgo(ticket.duplicates.baseline.ranAt) %></span>.</p>
+            <% } %>
+          </div>
           <form action="/tickets/<%= ticket.ticketId %>/duplicates" method="POST">
-            <button type="submit" class="secondary small-button">Re-run check</button>
+            <button type="submit" class="btn-secondary btn-sm"><%- icon('refresh-cw', 'size-3.5') %> Re-run check</button>
           </form>
         </div>
         <% if (!ticket.duplicates) { %>
-          <p class="muted small">Not checked yet.</p>
+          <p class="panel-body text-sm text-muted">Not checked yet. Choose Re-run check to compare it with other tickets.</p>
         <% } else { %>
-          <p class="muted small">Two independent methods, shown side by side for comparison. Checked against <%= ticket.duplicates.comparedAgainst %> other tickets on <%= new Date(ticket.duplicates.baseline.ranAt).toLocaleString() %>.</p>
-          <div class="two-col dup-cols">
+          <div class="grid divide-y divide-line md:grid-cols-2 md:divide-x md:divide-y-0">
             <% [['AI (embeddings + cosine)', ticket.duplicates.ai], ['Baseline (keywords + Jaccard)', ticket.duplicates.baseline]].forEach(function(pair) { var r = pair[1]; %>
-              <div>
+              <div class="p-5">
                 <h3><%= pair[0] %></h3>
-                <p class="small muted">
-                  threshold <%= r.threshold %><% if (r.model) { %> &middot; <%= r.model %><% } %>
-                </p>
+                <p class="mt-0.5 text-xs text-muted">Threshold <%= r.threshold %><% if (r.model) { %>, model <%= r.model %><% } %></p>
                 <% if (r.status !== 'ok') { %>
-                  <p class="small muted"><%= r.status === 'error' ? 'Failed (AI service error)' : 'Skipped' %>: <%= r.reason %></p>
+                  <p class="mt-3 text-sm text-muted"><%= r.status === 'error' ? 'Failed (AI service error)' : 'Skipped' %>: <%= r.reason %></p>
                 <% } else if (r.matches.length === 0) { %>
-                  <p class="small muted">No matches above threshold.</p>
+                  <p class="mt-3 text-sm text-muted">No matches above the threshold.</p>
                 <% } else { %>
-                  <ul class="dup-list">
+                  <ul class="mt-3 space-y-2">
                     <% r.matches.forEach(function(m) { %>
-                      <li>
-                        <a href="/tickets/<%= m.ticketId %>"><%= m.ticketId %></a> <%= m.title %>
-                        <span class="score"><%= m.score.toFixed(2) %></span>
-                        <span class="small muted"><%= m.status %></span>
+                      <li class="flex items-start gap-3">
+                        <span class="mt-0.5 w-11 shrink-0 text-right text-sm font-semibold tabular-nums text-brand"><%= m.score.toFixed(2) %></span>
+                        <span class="min-w-0 text-sm">
+                          <a href="/tickets/<%= m.ticketId %>" class="callsign text-brand"><%= m.ticketId %></a>
+                          <span class="text-ink"><%= m.title %></span>
+                          <span class="block text-xs text-muted"><%= m.status %></span>
+                        </span>
                       </li>
                     <% }) %>
                   </ul>
@@ -127,31 +75,121 @@
       </section>
     <% } %>
 
-    <h2 class="mt" id="activity">Activity</h2>
-    <% const events = []
-         .concat((ticket.statusHistory || []).map(function(h) { return { at: h.at, status: h.status, by: h.byEmail }; }))
-         .concat(ticket.comments.map(function(c) { return { at: c.createdAt, comment: c }; }))
-         .sort(function(a, b) { return new Date(a.at) - new Date(b.at); }); %>
-    <ul class="comment-list">
-      <% events.forEach(function(e) { %>
-        <li>
-          <% if (e.comment) { %>
-            <strong><%= e.comment.authorName %></strong>
-            <span class="muted small"><%= new Date(e.at).toLocaleString() %></span>
-            <p><%= e.comment.body %></p>
-          <% } else { %>
-            <span class="muted small"><%= new Date(e.at).toLocaleString() %> &middot; status set to <strong><%= e.status %></strong></span>
-          <% } %>
-        </li>
-      <% }) %>
-    </ul>
+    <%# ---- Activity: comments and status changes on one timeline ---- %>
+    <section aria-labelledby="activity">
+      <h2 id="activity">Activity</h2>
+      <% var events = []
+           .concat((ticket.statusHistory || []).map(function(h) { return { at: h.at, status: h.status }; }))
+           .concat(ticket.comments.map(function(c) { return { at: c.createdAt, comment: c }; }))
+           .sort(function(a, b) { return new Date(a.at) - new Date(b.at); }); %>
+      <ol class="relative mt-4 space-y-4 border-l border-line pl-6">
+        <% events.forEach(function(e) { %>
+          <li class="relative">
+            <% if (e.comment) { var staff = e.comment.authorRole && e.comment.authorRole !== 'end_user'; %>
+              <span class="avatar absolute top-0 -left-[2.4rem] ring-4 ring-canvas"><%= initials(e.comment.authorName) %></span>
+              <div class="panel px-4 py-3">
+                <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                  <span class="font-semibold text-ink"><%= e.comment.authorName %></span>
+                  <% if (staff) { %><span class="text-xs text-brand">IT staff</span><% } %>
+                  <span class="text-xs text-muted" title="<%= fullDate(e.at) %>"><%= timeAgo(e.at) %></span>
+                </p>
+                <p class="prose-text mt-1"><%= e.comment.body %></p>
+              </div>
+            <% } else { %>
+              <span class="absolute top-1.5 -left-[1.85rem] size-2.5 rounded-full border-2 border-canvas bg-muted"></span>
+              <p class="text-sm text-muted">Status set to <span class="font-medium text-ink"><%= e.status %></span> <span title="<%= fullDate(e.at) %>"><%= timeAgo(e.at) %></span></p>
+            <% } %>
+          </li>
+        <% }) %>
+      </ol>
 
-    <form action="/tickets/<%= ticket.ticketId %>/comment" method="POST" class="auth-form">
-      <label>Add a comment
-        <textarea name="body" rows="3" required maxlength="5000"></textarea>
-      </label>
-      <button type="submit">Post comment</button>
-    </form>
-  </main>
-</body>
-</html>
+      <form action="/tickets/<%= ticket.ticketId %>/comment" method="POST" class="panel mt-6 p-4">
+        <label class="field">Add a comment
+          <textarea class="input" name="body" rows="3" required maxlength="5000" placeholder="<%= currentUser.role === 'end_user' ? 'Add details or answer a question from IT' : 'Reply to the requester' %>"></textarea>
+        </label>
+        <div class="mt-3 flex justify-end">
+          <button type="submit" class="btn-primary"><%- icon('send') %> Post comment</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <%# ================= Side panel ================= %>
+  <aside class="space-y-6 lg:sticky lg:top-20 lg:self-start">
+    <% if (currentUser.role !== 'end_user') { %>
+      <section class="panel panel-body space-y-4" aria-label="Actions">
+        <% if (currentUser.role === 'agent' && !ticket.assigneeEmail) { %>
+          <form action="/tickets/<%= ticket.ticketId %>/claim" method="POST">
+            <button type="submit" class="btn-primary w-full"><%- icon('user') %> Claim this ticket</button>
+          </form>
+        <% } %>
+        <% if (agents.length) { %>
+          <form action="/tickets/<%= ticket.ticketId %>/assign" method="POST" class="space-y-2">
+            <label class="field">Assign to
+              <select class="input" name="agentEmail">
+                <% agents.forEach(function(a, i) { %>
+                  <option value="<%= a.email %>" <%= i === 0 ? 'selected' : '' %>><%= a.name %> (<%= a.active %> in progress)</option>
+                <% }) %>
+              </select>
+            </label>
+            <button type="submit" class="btn-primary w-full">Assign</button>
+          </form>
+        <% } %>
+        <% if (suggestedAssignee) { %>
+          <p class="text-xs text-muted">Suggested: <span class="font-medium text-ink-soft"><%= suggestedAssignee.name %></span>, the lightest workload (<%= suggestedAssignee.active %> in progress).</p>
+        <% } %>
+        <% if (nextStatuses.length) { %>
+          <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="space-y-2">
+            <label class="field">Move to
+              <select class="input" name="status">
+                <% nextStatuses.forEach(function(s) { %><option value="<%= s %>"><%= s %></option><% }) %>
+              </select>
+            </label>
+            <button type="submit" class="btn-secondary w-full">Update status</button>
+          </form>
+        <% } else { %>
+          <p class="text-sm text-muted">Closed tickets can't change status.</p>
+        <% } %>
+      </section>
+    <% } %>
+
+    <section class="panel" aria-label="Details">
+      <dl class="divide-y divide-line text-sm">
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Status</dt><dd class="font-medium"><%= ticket.status %></dd></div>
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Priority</dt><dd class="font-medium"><%= ticket.priority %></dd></div>
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Category</dt><dd class="font-medium"><%= ticket.category %></dd></div>
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Requester</dt><dd class="font-medium"><%= ticket.requesterName %></dd></div>
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Assignee</dt><dd class="font-medium" data-assignee="<%= ticket.assigneeName || '' %>"><%= ticket.assigneeName || 'Unassigned' %></dd></div>
+      </dl>
+    </section>
+
+    <section class="panel" aria-labelledby="slaHeading">
+      <h2 id="slaHeading" class="border-b border-line px-5 py-3 text-base">Service level</h2>
+      <% [['First response', sla.firstResponse], ['Resolution', sla.resolution]].forEach(function(row) { var c = row[1]; var pct = Math.min(100, Math.round(c.used * 100)); %>
+        <div class="px-5 py-3">
+          <div class="flex justify-between gap-4 text-sm">
+            <span class="text-ink-soft"><%= row[0] %></span>
+            <span class="font-medium tabular-nums <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink', met: 'text-ok' }[c.state] %>">
+              <% if (c.running) { %><%= c.state === 'breached' ? duration(c.remainingHours) + ' over' : duration(c.remainingHours) + ' left' %><% } else { %><%= c.state === 'met' ? 'Met' : 'Missed' %><% } %>
+            </span>
+          </div>
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken" role="img" aria-label="<%= pct %>% of the <%= c.targetHours %> hour target used">
+            <span class="block h-full rounded-full <%= { breached: 'bg-danger', at_risk: 'bg-caution', ok: 'bg-brand', met: 'bg-ok' }[c.state] %>" style="width: <%= pct %>%"></span>
+          </div>
+          <p class="mt-1 text-xs text-muted">Target <%= duration(c.targetHours) %></p>
+        </div>
+      <% }) %>
+      <% var tis = Object.keys(timeInStatus).filter(function(s) { return timeInStatus[s] > 0; }); %>
+      <div class="border-t border-line px-5 py-3">
+        <p class="text-xs text-muted">Time in each status</p>
+        <dl class="mt-1.5 space-y-1 text-sm">
+          <% tis.forEach(function(s) { %>
+            <div class="flex justify-between"><dt class="text-ink-soft"><%= s %></dt><dd class="tabular-nums"><%= duration(timeInStatus[s]) %></dd></div>
+          <% }) %>
+        </dl>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<%- include('partials/layout-bottom') %>

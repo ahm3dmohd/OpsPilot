@@ -1,56 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Agent queue' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <h1>Open queue</h1>
-    <p class="muted small">Sorted by SLA urgency. "Dup?" shows how many possible duplicates each method found (AI &middot; keyword).</p>
-    <% if (queue.length === 0) { %>
-      <p class="muted">No open tickets right now.</p>
-    <% } else { %>
-      <table class="ticket-table">
-        <thead>
-          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Category</th><th>Priority</th><th>SLA</th></tr>
-        </thead>
-        <tbody>
-          <% queue.forEach(function(t) { %>
-            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-              <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
-              <td><%= t.requesterName %></td>
-              <td><%= t.category %></td>
-              <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
-              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
+<%- include('partials/layout-top', { title: 'Queue' }) %>
 
-    <h1 class="mt">My tickets</h1>
-    <% if (mine.length === 0) { %>
-      <p class="muted">You haven't claimed any tickets yet.</p>
-    <% } else { %>
-      <table class="ticket-table">
-        <thead>
-          <tr><th>ID</th><th>Title</th><th>Requester</th><th>Status</th><th>SLA</th></tr>
-        </thead>
-        <tbody>
-          <% mine.forEach(function(t) { %>
-            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-              <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
-              <td><%= t.requesterName %></td>
-              <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
-              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-  </main>
-</body>
-</html>
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1>Open queue</h1>
+    <p class="mt-1 text-sm text-muted">Unclaimed tickets, most urgent SLA first.</p>
+  </div>
+  <a href="/tickets" class="btn-secondary"><%- icon('search') %> Search all tickets</a>
+</div>
+
+<section class="panel mt-6 overflow-hidden" aria-label="Open queue">
+  <% if (queue.length === 0) { %>
+    <p class="flex items-center gap-2 px-5 py-8 text-sm text-ok"><%- icon('circle-check') %> The queue is empty. New tickets will appear here.</p>
+  <% } else { %>
+    <% queue.forEach(function(t) { %><%- include('partials/ticket-strip', { t: t, showAssignee: false }) %><% }) %>
+  <% } %>
+</section>
+
+<h2 class="mt-10">My tickets</h2>
+<section class="panel mt-3 overflow-hidden" aria-label="My tickets">
+  <% if (mine.length === 0) { %>
+    <p class="px-5 py-8 text-sm text-muted">You haven't claimed any tickets. Open one from the queue above and choose Claim.</p>
+  <% } else { %>
+    <% mine.forEach(function(t) { %><%- include('partials/ticket-strip', { t: t, showAssignee: false }) %><% }) %>
+  <% } %>
+</section>
+
+<%- include('partials/layout-bottom') %>

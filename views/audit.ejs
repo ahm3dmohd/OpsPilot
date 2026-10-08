@@ -1,37 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Audit log' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <h1>Audit log</h1>
-    <% if (integrity.ok) { %>
-      <p class="ok-text">Hash chain intact &mdash; <%= integrity.count %> entries verified, none edited or removed.</p>
-    <% } else { %>
-      <p class="error">Hash chain BROKEN at entry #<%= integrity.brokenAt %> &mdash; that entry (or one before it) was changed or deleted.</p>
-    <% } %>
-    <p class="muted small">Latest 200 entries, newest first. Each entry's hash covers the previous one, so tampering with history is detectable.</p>
-    <% if (entries.length === 0) { %>
-      <p class="muted">No actions logged yet.</p>
-    <% } else { %>
-      <table class="ticket-table audit-table">
-        <thead><tr><th>#</th><th>When</th><th>Who</th><th>Action</th><th>Detail</th><th>Hash</th></tr></thead>
-        <tbody>
-          <% entries.forEach(function(e) { %>
-            <tr>
-              <td><%= e.seq %></td>
-              <td class="small"><%= new Date(e.createdAt).toLocaleString() %></td>
-              <td class="small"><%= e.actorEmail %></td>
-              <td><code><%= e.action %></code></td>
-              <td class="small"><code><%= JSON.stringify(e.detail) %></code></td>
-              <td class="small muted"><code><%= e.hash.slice(0, 10) %>&hellip;</code></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-  </main>
-</body>
-</html>
+<%- include('partials/layout-top', { title: 'Audit log' }) %>
+
+<h1>Audit log</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">Latest 200 actions, newest first. Each entry's hash includes the previous entry's, so editing or deleting history breaks the chain.</p>
+
+<% if (integrity.ok) { %>
+  <p class="notice-ok mt-6 flex items-center gap-2"><%- icon('shield-check') %> Hash chain intact: <%= integrity.count %> entries verified, none edited or removed.</p>
+<% } else { %>
+  <p class="notice-error mt-6 flex items-center gap-2" role="alert"><%- icon('triangle-alert') %> Hash chain BROKEN at entry #<%= integrity.brokenAt %>. That entry, or one before it, was changed or deleted.</p>
+<% } %>
+
+<% if (entries.length === 0) { %>
+  <p class="mt-6 text-sm text-muted">No actions logged yet.</p>
+<% } else { %>
+  <section class="panel mt-4 overflow-x-auto">
+    <table class="data-table">
+      <thead><tr><th>#</th><th>When</th><th>Who</th><th>Action</th><th>Detail</th><th>Hash</th></tr></thead>
+      <tbody>
+        <% entries.forEach(function(e) { %>
+          <tr>
+            <td class="tabular-nums text-muted"><%= e.seq %></td>
+            <td class="whitespace-nowrap" title="<%= fullDate(e.createdAt) %>"><%= timeAgo(e.createdAt) %></td>
+            <td><%= e.actorEmail %></td>
+            <td><code class="rounded bg-sunken px-1.5 py-0.5"><%= e.action %></code></td>
+            <td class="max-w-xs break-all"><code class="text-ink-soft"><%= JSON.stringify(e.detail) %></code></td>
+            <td><code class="text-muted"><%= e.hash.slice(0, 10) %>…</code></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+<% } %>
+
+<%- include('partials/layout-bottom') %>

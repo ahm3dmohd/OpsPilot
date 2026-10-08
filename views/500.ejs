@@ -1,14 +1,1 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Error' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <h1>Something went wrong</h1>
-    <p>The server hit an error handling that request. Nothing was lost - try again, and if it keeps happening tell IT.</p>
-    <p><a href="/dashboard">Back to dashboard</a></p>
-  </main>
-</body>
-</html>
+<%- include('partials/error-page', { heading: 'Something went wrong', message: 'The server hit an error handling that request. Try again; if it keeps happening, tell IT what you were doing.' }) %>

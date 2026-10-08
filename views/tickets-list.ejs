@@ -1,95 +1,100 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <%- include('partials/head', { title: 'Tickets' }) %>
-</head>
-<body>
-  <%- include('partials/nav') %>
-  <main class="container">
-    <p class="muted"><a href="/dashboard">&larr; Back to dashboard</a></p>
-    <div class="page-header">
-      <h1><%= tickets.length %> ticket<%= tickets.length === 1 ? '' : 's' %> <span class="muted small">of <%= total %></span></h1>
-      <% if (currentUser.role === 'manager') { %>
-        <a href="/reports/tickets.csv<%= query %>" class="button"><%= chips.length ? 'Export these as CSV' : 'Export CSV' %></a>
-      <% } %>
-    </div>
+<%- include('partials/layout-top', { title: 'Tickets' }) %>
 
-    <% if (chips.length) { %>
-      <div class="chips">
-        <% chips.forEach(function(c) { %>
-          <a href="<%= c.removeUrl %>" class="chip" title="Remove this filter"><%= c.label %> <span aria-hidden="true">&times;</span></a>
-        <% }) %>
-        <a href="/tickets" class="small muted">Clear all</a>
-      </div>
-    <% } %>
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 data-count="<%= tickets.length %>"><%= tickets.length %> ticket<%= tickets.length === 1 ? '' : 's' %></h1>
+    <p class="mt-1 text-sm text-muted"><%= chips.length ? 'Matching your filters, out of ' + total + ' in total.' : 'All tickets.' %></p>
+  </div>
+  <% if (currentUser.role === 'manager') { %>
+    <a href="/reports/tickets.csv<%= query %>" class="btn-secondary"><%- icon('download') %> <%= chips.length ? 'Export these as CSV' : 'Export CSV' %></a>
+  <% } %>
+</div>
 
-    <%# Filter form: GET, so the URL always describes what's shown and can be bookmarked or shared. %>
-    <form action="/tickets" method="GET" class="filter-form">
-      <input type="text" name="q" value="<%= filters.q || '' %>" placeholder="Search ID, title, description, requester" maxlength="100" />
-      <select name="status">
+<% if (chips.length) { %>
+  <div class="mt-4 flex flex-wrap items-center gap-2">
+    <% chips.forEach(function(c) { %>
+      <a href="<%= c.removeUrl %>" class="chip" title="Remove this filter"><%= c.label %> <%- icon('x', 'size-3.5') %></a>
+    <% }) %>
+    <a href="/tickets" class="ml-1 text-sm">Clear all</a>
+  </div>
+<% } %>
+
+<%# GET form: the URL always describes what's shown, so views can be bookmarked or shared. %>
+<details class="panel mt-4" <%= chips.length ? '' : 'open' %>>
+  <summary class="flex cursor-pointer items-center gap-2 px-5 py-3 text-sm font-medium text-ink-soft select-none"><%- icon('search') %> Filter and sort</summary>
+  <form action="/tickets" method="GET" class="grid gap-3 border-t border-line p-5 sm:grid-cols-2 lg:grid-cols-4">
+    <label class="field sm:col-span-2">Search
+      <input class="input" type="text" name="q" value="<%= filters.q || '' %>" placeholder="ID, title, description or requester" maxlength="100" />
+    </label>
+    <label class="field">Status
+      <select class="input" name="status">
         <option value="">Any status</option>
         <% STATUSES.forEach(function(v) { %><option <%= filters.status === v ? 'selected' : '' %>><%= v %></option><% }) %>
       </select>
-      <select name="state">
-        <option value="">Open + closed</option>
+    </label>
+    <label class="field">Open or closed
+      <select class="input" name="state">
+        <option value="">Both</option>
         <option value="active" <%= filters.state ? 'selected' : '' %>>Active only</option>
       </select>
-      <select name="priority">
+    </label>
+    <label class="field">Priority
+      <select class="input" name="priority">
         <option value="">Any priority</option>
         <% PRIORITIES.forEach(function(v) { %><option <%= filters.priority === v ? 'selected' : '' %>><%= v %></option><% }) %>
       </select>
-      <select name="category">
+    </label>
+    <label class="field">Category
+      <select class="input" name="category">
         <option value="">Any category</option>
         <% CATEGORIES.forEach(function(v) { %><option <%= filters.category === v ? 'selected' : '' %>><%= v %></option><% }) %>
       </select>
-      <select name="assignee">
-        <option value="">Any assignee</option>
+    </label>
+    <label class="field">Assignee
+      <select class="input" name="assignee">
+        <option value="">Anyone</option>
         <option value="unassigned" <%= filters.assignee === 'unassigned' ? 'selected' : '' %>>Unassigned</option>
         <% agents.forEach(function(a) { %><option value="<%= a.email %>" <%= filters.assignee === a.email ? 'selected' : '' %>><%= a.name %></option><% }) %>
       </select>
-      <select name="sla">
-        <option value="">Any SLA</option>
+    </label>
+    <label class="field">SLA
+      <select class="input" name="sla">
+        <option value="">Any SLA state</option>
         <% Object.keys(SLA_LABELS).forEach(function(k) { %><option value="<%= k %>" <%= filters.sla === k ? 'selected' : '' %>><%= SLA_LABELS[k] %></option><% }) %>
       </select>
-      <select name="dup">
-        <option value="">Any duplicate result</option>
+    </label>
+    <label class="field">Duplicate check
+      <select class="input" name="dup">
+        <option value="">Any result</option>
         <% Object.keys(DUP_LABELS).forEach(function(k) { %><option value="<%= k %>" <%= filters.dup === k ? 'selected' : '' %>><%= DUP_LABELS[k] %></option><% }) %>
       </select>
-      <select name="suggestion">
-        <option value="">Any category suggestion</option>
+    </label>
+    <label class="field">Category suggestion
+      <select class="input" name="suggestion">
+        <option value="">Any</option>
         <% Object.keys(SUGGESTION_LABELS).forEach(function(k) { %><option value="<%= k %>" <%= filters.suggestion === k ? 'selected' : '' %>><%= SUGGESTION_LABELS[k] %></option><% }) %>
       </select>
-      <select name="sort">
+    </label>
+    <label class="field">Sort
+      <select class="input" name="sort">
         <% [['newest', 'Newest first'], ['oldest', 'Oldest first'], ['sla', 'Worst SLA first'], ['priority', 'Highest priority first']].forEach(function(o) { %>
           <option value="<%= o[0] %>" <%= sort === o[0] ? 'selected' : '' %>><%= o[1] %></option>
         <% }) %>
       </select>
-      <button type="submit">Apply</button>
-    </form>
+    </label>
+    <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+      <button type="submit" class="btn-primary">Apply filters</button>
+      <a href="/tickets" class="btn-ghost">Reset</a>
+    </div>
+  </form>
+</details>
 
-    <% if (tickets.length === 0) { %>
-      <p class="muted mt">No tickets match these filters.</p>
-    <% } else { %>
-      <table class="ticket-table">
-        <thead>
-          <tr><th>ID</th><th>Title</th><th>Category</th><th>Requester</th><th>Assignee</th><th>Priority</th><th>Status</th><th>SLA</th></tr>
-        </thead>
-        <tbody>
-          <% tickets.forEach(function(t) { %>
-            <tr onclick="location.href='/tickets/<%= t.ticketId %>'">
-              <td><a href="/tickets/<%= t.ticketId %>"><%= t.ticketId %></a></td>
-              <td><%= t.title %> <%- include('partials/dup-badge', { t }) %></td>
-              <td><%= t.category %></td>
-              <td><%= t.requesterName %></td>
-              <td><%= t.assigneeName || '—' %></td>
-              <td><span class="pill pill-priority-<%= t.priority.toLowerCase() %>"><%= t.priority %></span></td>
-              <td><span class="pill pill-status-<%= t.status.replace(' ', '-').toLowerCase() %>"><%= t.status %></span></td>
-              <td><%- include('partials/sla-pill', { sla: t.sla }) %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    <% } %>
-  </main>
-</body>
-</html>
+<section class="panel mt-4 overflow-hidden" aria-label="Tickets">
+  <% if (tickets.length === 0) { %>
+    <p class="px-5 py-8 text-sm text-muted">No tickets match these filters. Remove a filter above to widen the search.</p>
+  <% } else { %>
+    <% tickets.forEach(function(t) { %><%- include('partials/ticket-strip', { t: t }) %><% }) %>
+  <% } %>
+</section>
+
+<%- include('partials/layout-bottom') %>

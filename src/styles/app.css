@@ -1,0 +1,203 @@
+/*
+ * OpsPilot styles - Tailwind CSS v4.
+ *
+ * Source file. The browser loads the compiled public/css/app.css, built
+ * with `npm run build:css` (or `npm run watch:css` while editing).
+ *
+ * Design: an IT operations desk. Ticket lists borrow the air-traffic
+ * "flight strip" - a coloured priority edge, the ticket ID set like a
+ * callsign, time left on the SLA at the right. Everything else stays quiet.
+ */
+@import "tailwindcss";
+
+/* Scan the EJS templates for class names. */
+@source "../../views";
+
+/* Classes built from data in templates (e.g. pill-<%= priority %>) can't
+   be found by the scanner, so list them here or they won't be generated. */
+@source inline("pill-{open,in-progress,resolved,closed,low,medium,high,urgent}");
+@source inline("pill-sla-{breached,at_risk,ok,met}");
+@source inline("strip-{low,medium,high,urgent,closed}");
+
+/* Dark mode follows a .dark class on <html> (set by the theme toggle). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Fonts (served from /fonts, see scripts/copy-fonts.js) ---- */
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-style: italic; font-display: swap; src: url("/fonts/ibm-plex-sans-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 700; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+
+/* ---- Design tokens ----
+ * Semantic colours (canvas, surface, ink...) rather than raw palette
+ * names, so dark mode only has to swap the variables below. */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-canvas: #eef2f6;     /* page background */
+  --color-surface: #ffffff;    /* panels, strips */
+  --color-sunken: #f5f7fa;     /* inputs, table heads, hover */
+  --color-line: #d9e0e8;       /* borders */
+  --color-ink: #13233a;        /* main text */
+  --color-ink-soft: #3d4f66;   /* secondary text */
+  --color-muted: #66768a;      /* hints, meta */
+
+  --color-brand: #11706b;      /* actions, links, focus */
+  --color-brand-ink: #0b4f4b;
+  --color-brand-soft: #e3f1ef;
+
+  --color-ok: #2f7d4f;
+  --color-ok-soft: #e4f2e9;
+  --color-caution: #b7791f;    /* SLA at risk, Medium */
+  --color-caution-soft: #fbf1df;
+  --color-danger: #c2382c;     /* SLA breached, Urgent, errors */
+  --color-danger-soft: #fbe6e3;
+  --color-info: #2f5f9e;       /* Open, Low */
+  --color-info-soft: #e5edf8;
+  --color-high: #c9611a;       /* High priority */
+  --color-high-soft: #fcebdc;
+}
+
+.dark {
+  --color-canvas: #0d1620;
+  --color-surface: #142130;
+  --color-sunken: #0f1a26;
+  --color-line: #24364a;
+  --color-ink: #e6edf5;
+  --color-ink-soft: #b5c3d3;
+  --color-muted: #8597ab;
+
+  --color-brand: #3fb3a9;
+  --color-brand-ink: #7fd6cd;
+  --color-brand-soft: #123532;
+
+  --color-ok: #5cbf86;
+  --color-ok-soft: #133024;
+  --color-caution: #e0a94a;
+  --color-caution-soft: #33281a;
+  --color-danger: #f0776b;
+  --color-danger-soft: #3a1e1e;
+  --color-info: #79a6e6;
+  --color-info-soft: #172a44;
+  --color-high: #f29455;
+  --color-high-soft: #3a2616;
+}
+
+/* ---- Base ---- */
+@layer base {
+  html {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "ss02"; /* Plex's simpler 'g' */
+    color-scheme: light;
+  }
+  html.dark { color-scheme: dark; }
+  body { @apply min-h-screen font-sans text-[15px] leading-6; }
+  h1 { @apply text-2xl font-semibold tracking-tight text-ink; }
+  h2 { @apply text-lg font-semibold text-ink; }
+  h3 { @apply text-base font-semibold text-ink; }
+  a { @apply text-brand underline-offset-2 hover:underline; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand; }
+  code { @apply font-mono text-[0.85em]; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* ---- Components ----
+ * Declared with @utility (Tailwind v4) so they can build on each other
+ * with @apply and take variants like hover: and dark:. */
+
+/* Buttons */
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-3.5 py-2 text-sm font-medium whitespace-nowrap no-underline transition-colors hover:no-underline disabled:opacity-50;
+}
+@utility btn-primary { @apply btn bg-brand text-white hover:bg-brand-ink dark:text-canvas; }
+@utility btn-secondary { @apply btn border-line bg-surface text-ink hover:bg-sunken; }
+@utility btn-danger { @apply btn border-danger/40 bg-surface text-danger hover:bg-danger-soft; }
+@utility btn-ghost { @apply btn text-ink-soft hover:bg-sunken hover:text-ink; }
+@utility btn-sm { @apply px-2.5 py-1 text-[13px]; }
+
+/* Panels: one radius for panels, a smaller one for controls. */
+@utility panel { @apply rounded-lg border border-line bg-surface; }
+@utility panel-body { @apply p-5; }
+@utility panel-head { @apply flex items-center justify-between gap-3 border-b border-line px-5 py-3; }
+
+/* Forms */
+@utility field { @apply flex flex-col gap-1.5 text-sm font-medium text-ink-soft; }
+@utility input {
+  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-[15px] font-normal text-ink placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/25 focus:outline-none;
+}
+@utility hint { @apply text-[13px] font-normal text-muted; }
+
+/* Pills: status / priority / SLA */
+@utility pill { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap; }
+@utility pill-open { @apply pill bg-info-soft text-info; }
+@utility pill-in-progress { @apply pill bg-caution-soft text-caution; }
+@utility pill-resolved { @apply pill bg-ok-soft text-ok; }
+@utility pill-closed { @apply pill bg-sunken text-muted; }
+@utility pill-low { @apply pill bg-info-soft text-info; }
+@utility pill-medium { @apply pill bg-caution-soft text-caution; }
+@utility pill-high { @apply pill bg-high-soft text-high; }
+@utility pill-urgent { @apply pill bg-danger-soft text-danger; }
+@utility pill-sla-breached { @apply pill bg-danger-soft text-danger; }
+@utility pill-sla-at_risk { @apply pill bg-caution-soft text-caution; }
+@utility pill-sla-ok { @apply pill bg-sunken text-ink-soft; }
+@utility pill-sla-met { @apply pill bg-ok-soft text-ok; }
+
+/* Ticket and article IDs read like callsigns. */
+@utility callsign { @apply font-mono text-[13px] font-medium tracking-tight text-ink-soft; }
+
+/* Flight strip: one ticket in a list. The left edge colour is the
+   ticket's priority; the right column is the SLA clock. */
+@utility strip {
+  @apply relative grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 border-b border-line bg-surface py-3 pr-4 pl-5 text-ink no-underline transition-colors last:border-b-0 hover:bg-sunken hover:no-underline sm:grid-cols-[5.5rem_1fr_auto_8.5rem];
+  &::before { content: ""; @apply absolute inset-y-0 left-0 w-1.5; }
+}
+@utility strip-low { &::before { @apply bg-info; } }
+@utility strip-medium { &::before { @apply bg-caution; } }
+@utility strip-high { &::before { @apply bg-high; } }
+@utility strip-urgent { &::before { @apply bg-danger; } }
+@utility strip-closed { @apply opacity-60; }
+
+/* Removable filter chips */
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-brand/40 bg-brand-soft px-3 py-1 text-[13px] text-brand-ink no-underline hover:border-brand hover:no-underline;
+}
+
+/* Plain data tables (audit log, evaluation, KB list) */
+@utility data-table {
+  @apply w-full border-collapse text-sm;
+  & th { @apply border-b border-line bg-sunken px-4 py-2.5 text-left text-[13px] font-medium text-muted; }
+  & td { @apply border-b border-line px-4 py-2.5 align-top; }
+  & tr:last-child td { @apply border-b-0; }
+}
+
+/* Messages */
+@utility notice { @apply rounded-md border px-4 py-3 text-sm; }
+@utility notice-error { @apply notice border-danger/30 bg-danger-soft text-danger; }
+@utility notice-ok { @apply notice border-ok/30 bg-ok-soft text-ok; }
+@utility notice-info { @apply notice border-info/30 bg-info-soft text-info; }
+
+/* Sidebar navigation */
+@utility nav-link {
+  @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-ink-soft no-underline hover:bg-sunken hover:text-ink hover:no-underline;
+  &[aria-current="page"] { @apply bg-brand-soft text-brand-ink; }
+}
+
+/* Instrument panel: dashboard numbers in one divided strip, each a link. */
+@utility gauge {
+  @apply flex min-w-0 flex-col gap-0.5 px-5 py-4 text-ink no-underline transition-colors hover:bg-sunken hover:no-underline;
+}
+@utility gauge-value { @apply text-3xl font-semibold tracking-tight tabular-nums; }
+@utility gauge-label { @apply text-[13px] text-muted; }
+
+/* Long-form text (descriptions, comments, KB articles) */
+@utility prose-text { @apply max-w-[72ch] text-[15px] leading-7 whitespace-pre-wrap text-ink; }
+
+@utility avatar {
+  @apply inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-ink;
+}
