@@ -125,6 +125,10 @@
 @utility panel { @apply rounded-lg border border-line bg-surface; }
 @utility panel-body { @apply p-5; }
 @utility panel-head { @apply flex items-center justify-between gap-3 border-b border-line px-5 py-3; }
+/* Staff-only internal notes: yellow, with a lock label, so nobody mistakes
+   them for a reply the requester will read. */
+@utility panel-internal { @apply rounded-lg border border-caution/40 bg-caution-soft; }
+@utility lock-label { @apply inline-flex items-center gap-1 rounded-full bg-caution/15 px-2 py-0.5 text-xs font-medium text-caution; }
 
 /* Forms */
 @utility field { @apply flex flex-col gap-1.5 text-sm font-medium text-ink-soft; }

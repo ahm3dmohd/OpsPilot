@@ -14,6 +14,7 @@ const filtering = require('../lib/ticketFilters');
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
 const MAX_COMMENT = 5000;
+const MAX_NOTE = 5000;
 
 const isStaff = (user) => user.role === 'agent' || user.role === 'manager';
 
@@ -160,6 +161,9 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     // Duplicate results, assignee suggestion and workloads are staff-only:
     // they reveal other people's tickets.
     showDuplicates: staff,
+    // Internal notes are only ever loaded for staff - the requester's page
+    // never has them in hand, so no template mistake can leak them.
+    internalNotes: staff ? await store.listInternalNotes(ticket.ticketId) : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
     agents: user.role === 'manager' && !ticket.assigneeEmail ? await agentWorkloads() : [],
     flash: req.query.msg || null,
@@ -249,6 +253,21 @@ router.post('/:id/comment', requireLogin, asyncHandler(async (req, res) => {
   await logAction(user, 'ticket.comment', { ticketId: ticket.ticketId });
   await notify.commented(ticket, user);
   res.redirect(`/tickets/${ticket.ticketId}#activity`);
+}));
+
+// ---- Internal notes (agents + managers only) ----
+// Never shown to the requester and never notified to anyone: staff read
+// them on the ticket page. The audit log records that a note was added,
+// not what it says.
+router.post('/:id/notes', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+  const existing = await store.getTicketById(String(req.params.id));
+  if (!existing) return res.status(404).render('404', { url: req.originalUrl });
+  const body = String(req.body.body || '').trim().slice(0, MAX_NOTE);
+  if (!body) return res.redirect(`/tickets/${existing.ticketId}#notes`);
+  const user = req.session.user;
+  await store.addInternalNote({ ticketId: existing.ticketId, authorEmail: user.email, authorName: user.name, authorRole: user.role, body });
+  await logAction(user, 'ticket.note', { ticketId: existing.ticketId });
+  res.redirect(`/tickets/${existing.ticketId}#notes`);
 }));
 
 module.exports = router;

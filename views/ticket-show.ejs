@@ -75,6 +75,39 @@
       </section>
     <% } %>
 
+    <%# ---- Internal notes: staff only. The route only loads them for staff; the check here just skips the empty panel. ---- %>
+    <% if (currentUser.role !== 'end_user') { %>
+      <section id="notes" class="panel-internal overflow-hidden" aria-labelledby="notesHeading">
+        <div class="flex items-center justify-between gap-3 border-b border-caution/30 px-5 py-3">
+          <h2 id="notesHeading" class="text-base">Internal notes</h2>
+          <span class="lock-label"><%- icon('lock', 'size-3.5') %> Staff only, the requester can't see these</span>
+        </div>
+        <% if (internalNotes.length) { %>
+          <ol class="divide-y divide-caution/20">
+            <% internalNotes.forEach(function(n) { %>
+              <li class="px-5 py-3" data-internal-note>
+                <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                  <span class="font-semibold text-ink"><%= n.authorName %></span>
+                  <span class="text-xs text-muted" title="<%= fullDate(n.createdAt) %>"><%= timeAgo(n.createdAt) %></span>
+                </p>
+                <p class="prose-text mt-1"><%= n.body %></p>
+              </li>
+            <% }) %>
+          </ol>
+        <% } else { %>
+          <p class="px-5 py-3 text-sm text-muted">No internal notes yet.</p>
+        <% } %>
+        <form action="/tickets/<%= ticket.ticketId %>/notes" method="POST" class="border-t border-caution/30 px-5 py-4">
+          <label class="field">Add an internal note
+            <textarea class="input" name="body" rows="2" required maxlength="5000" placeholder="Only IT staff will see this"></textarea>
+          </label>
+          <div class="mt-3 flex justify-end">
+            <button type="submit" class="btn-secondary"><%- icon('lock') %> Add internal note</button>
+          </div>
+        </form>
+      </section>
+    <% } %>
+
     <%# ---- Activity: comments and status changes on one timeline ---- %>
     <section aria-labelledby="activity">
       <h2 id="activity">Activity</h2>

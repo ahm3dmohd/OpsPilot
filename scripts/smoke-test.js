@@ -17,6 +17,7 @@ const path = require('path');
 const PORT = 3900 + Math.floor(Math.random() * 90);
 const BASE = `http://localhost:${PORT}`;
 const PASSWORD = 'password123';
+const NOTE_SECRET = `Internal: line manager approved the replacement (${Date.now()})`;
 
 let failures = 0;
 let passes = 0;
@@ -150,6 +151,8 @@ async function main() {
       [endUser, 'POST', '/tickets/T-1003/status', 'end user -> change status'],
       [endUser, 'POST', '/tickets/T-1003/duplicates', 'end user -> re-run duplicates'],
       [endUser, 'POST', '/tickets/T-1003/assign', 'end user -> assign'],
+      [endUser, 'POST', '/tickets/T-1003/notes', 'end user -> internal note on own ticket'],
+      [endUser, 'POST', '/tickets/T-1001/notes', "end user -> internal note on someone else's ticket"],
       [agent, 'GET', '/tickets/new', 'agent -> new ticket form'],
       [agent, 'POST', '/tickets', 'agent -> create ticket'],
       [agent, 'GET', '/audit', 'agent -> audit log'],
@@ -220,6 +223,29 @@ async function main() {
     check('agent comments', r.status === 302);
     r = await endUser.post(`/tickets/${newId}/comment`, { body: 'Wired is the same.' });
     check('requester replies on own ticket', r.status === 302);
+
+    console.log('\nInternal notes');
+    r = await agent.post(`/tickets/${newId}/notes`, { body: NOTE_SECRET });
+    check('agent adds an internal note', r.status === 302 && r.location.endsWith('#notes'));
+    r = await manager.post(`/tickets/${newId}/notes`, { body: 'Manager note <b>bold?</b>' });
+    check('manager adds an internal note', r.status === 302);
+    r = await agent.post(`/tickets/${newId}/notes`, { body: '   ' });
+    r = await agent.get(`/tickets/${newId}`);
+    check('staff see the internal notes panel with both notes', r.text.includes('Internal notes') && r.text.includes(NOTE_SECRET) && r.text.includes('Manager note'));
+    check('blank note is ignored', (r.text.match(/data-internal-note/g) || []).length === 2);
+    check('note text is HTML-escaped', r.text.includes('Manager note &lt;b&gt;bold?&lt;/b&gt;'));
+    r = await agent2.get(`/tickets/${newId}`);
+    check('other agents see the notes too', r.text.includes(NOTE_SECRET));
+    r = await endUser.get(`/tickets/${newId}`);
+    check('requester sees neither the notes nor the panel', r.status === 200 && !r.text.includes(NOTE_SECRET) && !r.text.includes('Internal notes') && !r.text.includes('Manager note'));
+    r = await endUser.post(`/tickets/${newId}/notes`, { body: 'requester trying to add a note' });
+    check('requester cannot add a note to own ticket (403)', r.status === 403);
+    r = await agent.get(`/tickets/${newId}`);
+    check('...and nothing was stored', !r.text.includes('requester trying to add a note'));
+    r = await agent.post('/tickets/T-9999/notes', { body: 'x' });
+    check('note on unknown ticket is a 404', r.status === 404);
+    r = await endUser.get('/notifications');
+    check('notes create no notifications for the requester', !r.text.includes(NOTE_SECRET) && !/note/i.test(r.text.replace(/<[^>]+>/g, ' ').replace(/notifications?/gi, '')));
     r = await agent.post(`/tickets/${newId}/status`, { status: 'Resolved' });
     check('In Progress -> Resolved', r.status === 302 && !r.location.includes('msg='));
     r = await manager.post(`/tickets/${newId}/status`, { status: 'Closed' });
@@ -293,6 +319,7 @@ async function main() {
     const csvRows = r.text.trim().split('\r\n');
     check('CSV has one row per ticket (+ header)', csvRows.length >= 24, `(got ${csvRows.length})`);
     check('CSV neutralises formulas', r.text.includes(`"'=HYPERLINK(""http://evil.example"",""click"")"`));
+    check('CSV never contains internal note text', !r.text.includes(NOTE_SECRET));
     check('CSV includes duplicate + SLA columns', r.text.includes('"aiMatches"') && r.text.includes('"slaOverall"'));
     r = await manager.get('/evaluation');
     check('manager sees the evaluation page', r.status === 200 && r.text.includes('Held-out test') && r.text.includes('F1'));
@@ -333,6 +360,7 @@ async function main() {
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
+    check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });
     check('help assistant returns the password article', help.status === 200 && help.body.articles.some((a) => a.articleId === 'KB-02'));
     r = await endUser.get('/help?q=printer+offline');

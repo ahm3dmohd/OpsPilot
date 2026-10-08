@@ -15,6 +15,7 @@ const Counter = require('../models/Counter');
 const AuditLog = require('../models/AuditLog');
 const Notification = require('../models/Notification');
 const Article = require('../models/Article');
+const InternalNote = require('../models/InternalNote');
 const { demoUsers, seedTickets, seedArticles, DEMO_PASSWORD } = require('../lib/seedData');
 
 async function seed() {
@@ -42,6 +43,7 @@ async function seed() {
   await Counter.create({ _id: 'article', seq: articles.length });
   await AuditLog.deleteMany({});
   await Notification.deleteMany({});
+  await InternalNote.deleteMany({});
   console.log(`Seeded ${articles.length} knowledge-base articles.`);
   console.log(`Seeded ${tickets.length} tickets. Embeddings and duplicate checks run when the server starts.`);
 
