@@ -10,7 +10,8 @@
    };
    var okFlashes = {
      merged: (mergedFrom || 'The newer ticket') + ' was merged into this ticket. Its description and comments are copied into the internal notes below.',
-     rejected: 'Suggestion rejected. That pair will not be suggested again.'
+     rejected: 'Suggestion rejected. That pair will not be suggested again.',
+     rerouted: 'Department saved.'
    }; %>
 
 <a href="<%= currentUser.role === 'end_user' ? '/dashboard' : '/tickets' %>" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> <%= currentUser.role === 'end_user' ? 'My tickets' : 'All tickets' %></a>
@@ -213,6 +214,16 @@
         <% if (suggestedAssignee) { %>
           <p class="text-xs text-muted">Suggested: <span class="font-medium text-ink-soft"><%= suggestedAssignee.name %></span>, the lightest workload (<%= suggestedAssignee.active %> in progress).</p>
         <% } %>
+        <% if (departments.length) { %>
+          <form action="/tickets/<%= ticket.ticketId %>/department" method="POST" class="space-y-2">
+            <label class="field">Route to department
+              <select class="input" name="department">
+                <% departments.forEach(function(d) { %><option value="<%= d.code %>" <%= (ticket.department || 'IT') === d.code ? 'selected' : '' %>><%= d.name %></option><% }) %>
+              </select>
+            </label>
+            <button type="submit" class="btn-secondary w-full">Re-route</button>
+          </form>
+        <% } %>
         <% if (nextStatuses.length) { %>
           <form action="/tickets/<%= ticket.ticketId %>/status" method="POST" class="space-y-2">
             <label class="field">Move to
@@ -232,6 +243,7 @@
       <dl class="divide-y divide-line text-sm">
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Status</dt><dd class="font-medium"><%= ticket.status %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Priority</dt><dd class="font-medium"><%= ticket.priority %></dd></div>
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Department</dt><dd class="font-medium" data-department="<%= ticket.department || 'IT' %>"><%= department ? department.name : (ticket.department || 'IT') %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Category</dt><dd class="font-medium"><%= ticket.category %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Requester</dt><dd class="font-medium"><%= ticket.requesterName %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Assignee</dt><dd class="font-medium" data-assignee="<%= ticket.assigneeName || '' %>"><%= ticket.assigneeName || 'Unassigned' %></dd></div>

@@ -44,6 +44,12 @@
         <% PRIORITIES.forEach(function(v) { %><option <%= filters.priority === v ? 'selected' : '' %>><%= v %></option><% }) %>
       </select>
     </label>
+    <label class="field">Department
+      <select class="input" name="department">
+        <option value="">Any department</option>
+        <% departments.forEach(function(d) { %><option value="<%= d.code %>" <%= filters.department === d.code ? 'selected' : '' %>><%= d.name %></option><% }) %>
+      </select>
+    </label>
     <label class="field">Category
       <select class="input" name="category">
         <option value="">Any category</option>

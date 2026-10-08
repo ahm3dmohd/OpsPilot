@@ -1,0 +1,56 @@
+<%- include('partials/layout-top', { title: 'Departments' }) %>
+<% var flashes = { created: 'Department added.', head_changed: 'Department head saved.' };
+   var errors = {
+     bad_input: 'Give a code (capital letters/digits, up to 12, e.g. QA) and a name of at least 2 characters.',
+     code_taken: 'That code is already used by another department.',
+     bad_head: "That person isn't a user."
+   }; %>
+
+<a href="/admin/users" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> Users &amp; roles</a>
+
+<h1 class="mt-4">Departments</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">Tickets are routed to a department. A department's head gives the last approval on service requests from their department, and on service requests sent to it.</p>
+<% if (flash && flashes[flash]) { %><p class="notice-ok mt-4" role="status"><%= flashes[flash] %></p><% } %>
+<% if (flash && errors[flash]) { %><p class="notice-error mt-4" role="alert"><%= errors[flash] %></p><% } %>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+  <section class="panel overflow-x-auto" aria-label="Departments">
+    <table class="data-table">
+      <thead><tr><th>Department</th><th class="text-right">People</th><th class="text-right">Tickets</th><th>Head</th></tr></thead>
+      <tbody>
+        <% departments.forEach(function(d) { %>
+          <tr data-dept="<%= d.code %>">
+            <td><span class="callsign"><%= d.code %></span> <span class="font-medium"><%= d.name %></span></td>
+            <td class="text-right tabular-nums"><%= members[d.code] || 0 %></td>
+            <td class="text-right tabular-nums"><a href="/tickets?department=<%= d.code %>"><%= counts[d.code] || 0 %></a></td>
+            <td>
+              <form action="/admin/departments/<%= d.code %>/head" method="POST" class="flex items-center gap-2">
+                <label class="sr-only" for="head-<%= d.code %>">Head of <%= d.name %></label>
+                <select class="input w-auto py-1.5" id="head-<%= d.code %>" name="headEmail">
+                  <option value="">No head yet</option>
+                  <% users.forEach(function(u) { %><option value="<%= u.email %>" <%= d.headEmail === u.email ? 'selected' : '' %>><%= u.name %></option><% }) %>
+                </select>
+                <button type="submit" class="btn-secondary btn-sm">Save</button>
+              </form>
+              <% if (!d.headEmail) { %><span class="mt-1 block text-xs text-caution">No head: service requests needing this approval wait until one is set.</span><% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+
+  <form action="/admin/departments" method="POST" class="panel panel-body space-y-4 self-start">
+    <h2 class="text-base">Add a department</h2>
+    <label class="field">Code
+      <input class="input" type="text" name="code" required maxlength="12" pattern="[A-Za-z][A-Za-z0-9-]{0,11}" placeholder="e.g. QA" />
+      <span class="hint">Short ID shown on tickets. Capital letters, digits or dashes.</span>
+    </label>
+    <label class="field">Name
+      <input class="input" type="text" name="name" required minlength="2" maxlength="60" placeholder="e.g. Quality Assurance" />
+    </label>
+    <div class="flex justify-end"><button type="submit" class="btn-primary"><%- icon('plus') %> Add</button></div>
+  </form>
+</div>
+
+<%- include('partials/layout-bottom') %>

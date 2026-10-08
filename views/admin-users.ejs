@@ -2,37 +2,66 @@
 <% var errors = {
      self: "You can't change your own role. Ask another admin.",
      last_admin: "That's the last admin. Make someone else an admin first.",
-     unchanged: 'That user already has that role.'
+     unchanged: 'That user already has that role.',
+     bad_department: "That department doesn't exist.",
+     bad_manager: "That line manager isn't a user.",
+     self_manager: "Someone can't be their own line manager.",
+     manager_loop: "That would make a loop: the chosen manager already reports (directly or indirectly) to this person."
    };
-   var target = users.find(function(u) { return u.email === who; }); %>
+   var target = users.find(function(u) { return u.email === who; });
+   var deptName = {}; departments.forEach(function(d) { deptName[d.code] = d.name; }); %>
 
-<h1>Users &amp; roles</h1>
-<p class="mt-1 max-w-3xl text-sm text-muted">Change what each person can do. Changes take effect on their next page load. Every change is recorded in the audit log.</p>
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1>Users &amp; roles</h1>
+    <p class="mt-1 max-w-3xl text-sm text-muted">Role decides what someone can do in the app. Department and line manager decide who approves their service requests. Changes apply on the person's next page load and are recorded in the audit log.</p>
+  </div>
+  <a href="/admin/departments" class="btn-secondary"><%- icon('building-2') %> Departments</a>
+</div>
 
 <% if (flash === 'role_changed' && target) { %><p class="notice-ok mt-4" role="status"><%= target.name %> is now <%= roleLabel(target.role) %>.</p><% } %>
+<% if (flash === 'org_changed' && target) { %><p class="notice-ok mt-4" role="status">Saved department and line manager for <%= target.name %>.</p><% } %>
 <% if (flash && errors[flash]) { %><p class="notice-error mt-4" role="alert"><%= errors[flash] %></p><% } %>
 
 <section class="panel mt-6 overflow-x-auto">
   <table class="data-table">
-    <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+    <thead><tr><th>Person</th><th>Role</th><th>Department and line manager</th></tr></thead>
     <tbody>
-      <% users.forEach(function(u) { var self = u.email === currentUser.email; %>
+      <% users.forEach(function(u) { var self = u.email === currentUser.email; var key = u.email.replace(/[^a-z0-9]/gi, '-'); %>
         <tr data-user="<%= u.email %>">
-          <td class="font-medium"><%= u.name %><% if (self) { %> <span class="text-xs text-muted">(you)</span><% } %></td>
-          <td class="text-ink-soft"><%= u.email %></td>
+          <td>
+            <span class="block font-medium"><%= u.name %><% if (self) { %> <span class="text-xs font-normal text-muted">(you)</span><% } %></span>
+            <span class="block text-ink-soft"><%= u.email %></span>
+          </td>
           <td>
             <% if (self) { %>
               <span class="pill-role"><%= roleLabel(u.role) %></span>
             <% } else { %>
               <form action="/admin/users/role" method="POST" class="flex items-center gap-2">
                 <input type="hidden" name="email" value="<%= u.email %>" />
-                <label class="sr-only" for="role-<%= u.email %>">Role for <%= u.name %></label>
-                <select class="input w-auto py-1.5" id="role-<%= u.email %>" name="role">
+                <label class="sr-only" for="role-<%= key %>">Role for <%= u.name %></label>
+                <select class="input w-auto py-1.5" id="role-<%= key %>" name="role">
                   <% ROLES.forEach(function(r) { %><option value="<%= r %>" <%= u.role === r ? 'selected' : '' %>><%= roleLabel(r) %></option><% }) %>
                 </select>
                 <button type="submit" class="btn-secondary btn-sm">Save</button>
               </form>
             <% } %>
+          </td>
+          <td>
+            <form action="/admin/users/org" method="POST" class="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="email" value="<%= u.email %>" />
+              <label class="sr-only" for="dept-<%= key %>">Department for <%= u.name %></label>
+              <select class="input w-auto py-1.5" id="dept-<%= key %>" name="department">
+                <option value="">No department</option>
+                <% departments.forEach(function(d) { %><option value="<%= d.code %>" <%= u.department === d.code ? 'selected' : '' %>><%= d.name %></option><% }) %>
+              </select>
+              <label class="sr-only" for="mgr-<%= key %>">Line manager for <%= u.name %></label>
+              <select class="input w-auto py-1.5" id="mgr-<%= key %>" name="managerEmail">
+                <option value="">No line manager</option>
+                <% users.forEach(function(m) { if (m.email === u.email) return; %><option value="<%= m.email %>" <%= u.managerEmail === m.email ? 'selected' : '' %>><%= m.name %></option><% }) %>
+              </select>
+              <button type="submit" class="btn-secondary btn-sm">Save</button>
+            </form>
           </td>
         </tr>
       <% }) %>

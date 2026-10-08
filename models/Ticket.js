@@ -27,6 +27,7 @@ const ticketSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   category: { type: String, default: 'General' },
+  department: { type: String, default: 'IT' }, // department code the ticket is routed to
   priority: { type: String, enum: PRIORITIES, default: 'Medium' },
   status: { type: String, enum: STATUSES, default: 'Open' },
   requesterEmail: { type: String, required: true },

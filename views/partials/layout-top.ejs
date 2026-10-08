@@ -44,6 +44,7 @@
         <% if (currentUser.role === 'admin') { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Administration</p>
           <a href="/admin/users" class="nav-link" <%- on('/admin/users') %>><%- icon('users') %> Users &amp; roles</a>
+          <a href="/admin/departments" class="nav-link" <%- on('/admin/departments') %>><%- icon('building-2') %> Departments</a>
         <% } %>
       </nav>
 

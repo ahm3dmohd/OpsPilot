@@ -27,6 +27,8 @@ memory and are re-seeded on every start.
 | `agent2@opspilot.test` | Agent (Sara Ali) |
 | `manager@opspilot.test` | Manager |
 | `admin@opspilot.test` | Admin (manager rights + user management) |
+| `lead@opspilot.test` | End User (Khalid Mansoor, Finance; Erin's line manager) |
+| `finhead@opspilot.test` | End User (Layla Nasser, head of Finance; Khalid's manager) |
 
 To turn on the AI features and/or real persistence, `cp .env.example .env`
 and fill in what you need. Every setting is explained in `.env.example`.
@@ -111,6 +113,8 @@ Admins (new) can do everything a manager can, plus the rows marked admin.
 | Use / write / edit canned responses | ❌ | ✅ | ✅ |
 | Delete canned responses | ❌ | ❌ | ✅ |
 | Change users' roles (`/admin/users`) | ❌ | ❌ | ❌ admin only |
+| Set departments, line managers, department heads | ❌ | ❌ | ❌ admin only |
+| Re-route a ticket to another department | ❌ | ✅ | ✅ |
 | Notifications | own | own | own |
 | Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
 | CSV export, AI evaluation page, duplicate-decision stats, audit log | ❌ | ❌ | ✅ |
@@ -281,6 +285,15 @@ as the seed tickets.
   a `user.role` entry in the audit log (who, whom, old and new role, when).
   For a database seeded before admins existed, `npm run make-admin --
   <email>` promotes an existing user.
+- **Departments + org structure**: a `Department` collection (code, name,
+  head) seeded with IT, HR, Finance, Facilities, Operations, Procurement,
+  Legal, Marketing and Customer Service. Each user has a department and a
+  line manager (`managerEmail`), set by admins on `/admin/users`; heads
+  and new departments are set on `/admin/departments`. The server refuses
+  unknown departments/users, self-management and management loops. Every
+  ticket has a department (shown on lists and the ticket page, filterable,
+  in the CSV), and staff can re-route it. A startup migration adds the
+  departments to an older database and routes its existing tickets to IT.
 - **Internal notes**: a yellow, lock-labelled panel on the ticket page for
   staff-only notes. They live in their own collection (`InternalNote`),
   not inside the ticket, and the ticket route only loads them for agents
@@ -359,10 +372,10 @@ routes/
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
   canned.routes.js         canned responses: list, create, edit, delete
-  users.routes.js          admin: users and roles (mounted at /admin)
+  users.routes.js          admin: users, roles, departments (mounted at /admin)
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
@@ -372,6 +385,7 @@ lib/
   duplicates.js            the two duplicate-detection methods
   duplicateDecisions.js    confirm (merge) / reject a suggested pair, decision stats
   roles.js                 role changes with the self / last-admin safeguards
+  org.js                   department / line manager / head edits with validation
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval

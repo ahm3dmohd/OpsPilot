@@ -196,6 +196,11 @@ async function main() {
       [manager, 'GET', '/admin/users', 'manager -> user management'],
       [manager, 'POST', '/admin/users/role', 'manager -> change a role'],
       [agent, 'POST', '/admin/users/role', 'agent -> change a role'],
+      [manager, 'POST', '/admin/users/org', 'manager -> change department/line manager'],
+      [manager, 'GET', '/admin/departments', 'manager -> departments page'],
+      [manager, 'POST', '/admin/departments', 'manager -> add a department'],
+      [agent, 'POST', '/admin/departments/IT/head', 'agent -> set department head'],
+      [endUser, 'POST', '/tickets/T-1003/department', 'end user -> re-route ticket'],
       [endUser, 'GET', '/canned', 'end user -> canned responses'],
       [endUser, 'POST', '/canned', 'end user -> create canned response'],
       [endUser, 'GET', '/canned/1/edit', 'end user -> edit canned response form'],
@@ -511,6 +516,51 @@ async function main() {
     r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'agent' });
     r = await agent2.get('/tickets');
     check('agent2 is an agent again', r.status === 200);
+
+    console.log('\nDepartments + org structure');
+    r = await admin.get('/admin/departments');
+    check('departments page lists the seeded departments', r.status === 200 && ['IT', 'HR', 'FIN', 'FAC', 'OPS', 'PROC'].every((c) => r.text.includes(`data-dept="${c}"`)));
+    r = await admin.post('/admin/departments', { code: 'qa', name: 'Quality Assurance' });
+    check('admin adds a department (code upper-cased)', r.location.includes('msg=created'));
+    r = await admin.post('/admin/departments', { code: 'QA', name: 'Duplicate' });
+    check('duplicate department code is refused', r.location.includes('msg=code_taken'));
+    r = await admin.post('/admin/departments', { code: '<x>', name: 'Bad' });
+    check('invalid department code is refused', r.location.includes('msg=bad_input'));
+    r = await admin.post('/admin/departments/QA/head', { headEmail: 'agent2@opspilot.test' });
+    check('admin sets a department head', r.location.includes('msg=head_changed'));
+    r = await admin.get('/admin/departments');
+    check('...and it shows as selected', /data-dept="QA"[\s\S]*?value="agent2@opspilot.test" selected/.test(r.text));
+    r = await admin.post('/admin/departments/QA/head', { headEmail: 'nobody@opspilot.test' });
+    check('a head who is not a user is refused', r.location.includes('msg=bad_head'));
+    r = await admin.post('/admin/departments/NOPE/head', { headEmail: '' });
+    check('unknown department is a 404', r.status === 404);
+    r = await admin.get('/admin/users');
+    const erinRow = (/data-user="enduser@opspilot.test"[\s\S]*?<\/tr>/.exec(r.text) || [''])[0];
+    check("users page shows Erin's department and line manager", /value="FIN" selected/.test(erinRow) && /value="lead@opspilot.test" selected/.test(erinRow));
+    r = await admin.post('/admin/users/org', { email: 'agent2@opspilot.test', department: 'QA', managerEmail: 'agent@opspilot.test' });
+    check('admin sets department + line manager', r.location.includes('msg=org_changed'));
+    r = await admin.post('/admin/users/org', { email: 'agent@opspilot.test', department: 'IT', managerEmail: 'agent2@opspilot.test' });
+    check('a management loop is refused (A -> B -> A)', r.location.includes('msg=manager_loop'));
+    r = await admin.post('/admin/users/org', { email: 'agent@opspilot.test', department: 'IT', managerEmail: 'agent@opspilot.test' });
+    check('nobody can be their own line manager', r.location.includes('msg=self_manager'));
+    r = await admin.post('/admin/users/org', { email: 'agent@opspilot.test', department: 'NOPE', managerEmail: '' });
+    check('unknown department is refused', r.location.includes('msg=bad_department'));
+    r = await admin.post('/admin/users/org', { email: 'agent@opspilot.test', department: 'IT', managerEmail: 'ghost@opspilot.test' });
+    check('a line manager who is not a user is refused', r.location.includes('msg=bad_manager'));
+    await admin.post('/admin/users/org', { email: 'agent2@opspilot.test', department: 'IT', managerEmail: 'manager@opspilot.test' });
+
+    r = await agent.get('/tickets/T-1005');
+    check('ticket page shows its department', r.text.includes('data-department="IT"') && r.text.includes('Information Technology'));
+    r = await agent.post('/tickets/T-1005/department', { department: 'FAC' });
+    check('agent re-routes a ticket to Facilities', r.location.includes('msg=rerouted'));
+    r = await agent.post('/tickets/T-1005/department', { department: 'NOPE' });
+    check('re-routing to an unknown department is refused (400)', r.status === 400);
+    r = await manager.get('/tickets?department=FAC');
+    check('department filter lists it, with a chip', r.text.includes('data-ticket="T-1005"') && r.text.includes('Department: Facilities') && (r.text.match(/data-count="(\d+)"/) || [])[1] === '1');
+    r = await manager.get('/tickets?department=IT');
+    check('...and it left the IT list', !r.text.includes('data-ticket="T-1005"') && r.text.includes('dept-tag'));
+    r = await manager.get('/reports/tickets.csv?department=FAC');
+    check('CSV export has a department column and honours the filter', r.text.includes('"department"') && r.text.includes('"T-1005"') && r.text.trim().split('\r\n').length === 2);
 
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');

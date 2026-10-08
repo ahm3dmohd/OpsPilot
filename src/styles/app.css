@@ -152,6 +152,7 @@
 @utility pill-sla-ok { @apply pill bg-sunken text-ink-soft; }
 @utility pill-sla-met { @apply pill bg-ok-soft text-ok; }
 @utility pill-role { @apply pill bg-brand-soft text-brand-ink; }
+@utility dept-tag { @apply rounded border border-line px-1.5 font-mono text-[12px] text-ink-soft; }
 
 /* Ticket and article IDs read like callsigns. */
 @utility callsign { @apply font-mono text-[13px] font-medium tracking-tight text-ink-soft; }

@@ -111,6 +111,8 @@ async function connectDatabase() {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
     store.useDatabase();
     await store.syncCounters();
+    const migrated = await store.migrate();
+    if (migrated.length) console.log(`Migrated: ${migrated.join('; ')}.`);
     console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);

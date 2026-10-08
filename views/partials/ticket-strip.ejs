@@ -7,6 +7,7 @@
   <span class="min-w-0">
     <span class="block truncate font-medium text-ink"><%= t.title %></span>
     <span class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+      <span class="dept-tag" title="Department"><%= t.department || 'IT' %></span>
       <span><%= t.category %></span>
       <% if (typeof showRequester === 'undefined' || showRequester) { %><span><%= t.requesterName %></span><% } %>
       <% if (typeof showAssignee === 'undefined' || showAssignee) { %>

@@ -6,6 +6,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ROLES, required: true, default: 'end_user' },
+  // Org structure: department code (see Department) and line manager.
+  // Users are referenced by email everywhere in this app.
+  department: { type: String, default: null },
+  managerEmail: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
 });
 

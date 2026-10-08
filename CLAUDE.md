@@ -50,6 +50,10 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
   every manager right (requireRole('manager') also admits admin; views use
   `managerRights`). Line managers and department heads are ORG LINKS, not
   roles. Role is re-read from the DB on every request (server.js).
+- Users are referenced by EMAIL everywhere (managerEmail, headEmail,
+  assigneeEmail), never by _id. Departments by `code` (e.g. "IT").
+- Schema changes need a step in store.migrate() (runs at startup,
+  idempotent, fills in missing fields only) so older databases keep working.
 - Help assistant is retrieval only (returns written KB articles, no generated
   text). End users never see other users' tickets or duplicate results.
 - UI: Tailwind v4, compiled (not CDN). Semantic colour tokens + dark mode in

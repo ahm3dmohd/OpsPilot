@@ -64,17 +64,19 @@ const SORTS = {
 router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
   const filters = filtering.parseFilters(req.query);
   const sort = SORTS[req.query.sort] ? req.query.sort : 'newest';
-  const [all, agents] = await Promise.all([store.listTickets({}), store.listUsers({ role: 'agent' })]);
+  const [all, agents, departments] = await Promise.all([store.listTickets({}), store.listUsers({ role: 'agent' }), store.listDepartments()]);
   const tickets = filtering.applyFilters(filtering.withSla(all), filters).sort(SORTS[sort]);
   const nameOf = (email) => (agents.find((a) => a.email === email) || {}).name || email;
+  const deptName = (code) => (departments.find((d) => d.code === code) || {}).name || code;
   res.render('tickets-list', {
     tickets,
     total: all.length,
     filters,
     sort,
-    chips: filtering.chips(filters, { nameOf }),
+    chips: filtering.chips(filters, { nameOf, deptName }),
     query: filtering.toQuery(filters),
     agents,
+    departments,
     STATUSES,
     PRIORITIES,
     CATEGORIES,
@@ -168,6 +170,8 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     // Tickets merged into this one (their IDs are other people's tickets).
     mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
     cannedResponses: staff ? await store.listCannedResponses() : [],
+    department: await store.getDepartment(ticket.department || 'IT'),
+    departments: staff ? await store.listDepartments() : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
     agents: hasManagerRights(user) && !ticket.assigneeEmail ? await agentWorkloads() : [],
     flash: req.query.msg ? String(req.query.msg) : null,
@@ -229,6 +233,20 @@ router.post('/:id/status', requireRole('agent', 'manager'), asyncHandler(async (
   await logAction(user, 'ticket.status', { ticketId: ticket.ticketId, from: existing.status, to: status });
   await notify.statusChanged(ticket, user, existing.status);
   res.redirect(`/tickets/${ticket.ticketId}`);
+}));
+
+// Re-route a ticket to another department (agents + managers).
+router.post('/:id/department', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+  const existing = await store.getTicketById(String(req.params.id));
+  if (!existing) return res.status(404).render('404', { url: req.originalUrl });
+  const dept = await store.getDepartment(String(req.body.department || ''));
+  if (!dept) return res.status(400).send('Unknown department');
+  const from = existing.department || 'IT';
+  if (dept.code !== from) {
+    await store.updateTicket(existing.ticketId, { set: { department: dept.code } });
+    await logAction(req.session.user, 'ticket.department', { ticketId: existing.ticketId, from, to: dept.code });
+  }
+  res.redirect(`/tickets/${existing.ticketId}?msg=rerouted`);
 }));
 
 // Re-runs both duplicate methods (e.g. for seed tickets, which have no
