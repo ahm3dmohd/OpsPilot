@@ -56,5 +56,5 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 - Real MongoDB mode is only verified by review + simulation; run the
   TEST_MONGODB_URI test above on a machine with MongoDB.
 - Known gaps: no CSRF tokens, in-memory session store, no password reset.
-- Built: internal notes, confirm/reject duplicates + merge (/admin/duplicate-stats).
-  Next planned: canned responses.
+- Built: internal notes, confirm/reject duplicates + merge (/admin/duplicate-stats),
+  canned responses (/canned).

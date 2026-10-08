@@ -17,7 +17,8 @@ const Notification = require('../models/Notification');
 const Article = require('../models/Article');
 const InternalNote = require('../models/InternalNote');
 const DuplicateDecision = require('../models/DuplicateDecision');
-const { demoUsers, seedTickets, seedArticles, DEMO_PASSWORD } = require('../lib/seedData');
+const CannedResponse = require('../models/CannedResponse');
+const { demoUsers, seedTickets, seedArticles, seedCannedResponses, DEMO_PASSWORD } = require('../lib/seedData');
 
 async function seed() {
   if (!process.env.MONGODB_URI) {
@@ -46,6 +47,8 @@ async function seed() {
   await Notification.deleteMany({});
   await InternalNote.deleteMany({});
   await DuplicateDecision.deleteMany({});
+  await CannedResponse.deleteMany({});
+  await CannedResponse.insertMany(seedCannedResponses());
   console.log(`Seeded ${articles.length} knowledge-base articles.`);
   console.log(`Seeded ${tickets.length} tickets. Embeddings and duplicate checks run when the server starts.`);
 

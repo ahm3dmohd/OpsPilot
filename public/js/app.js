@@ -46,6 +46,25 @@
     if (form && !window.confirm(form.dataset.confirm)) e.preventDefault();
   });
 
+  // Canned responses: picking one inserts its text into the comment box at
+  // the cursor (replacing any selection), then resets the dropdown so the
+  // same reply can be inserted again. The agent can still edit before posting.
+  var canned = document.querySelector('[data-canned]');
+  if (canned) {
+    canned.classList.remove('hidden');
+    var select = canned.querySelector('[data-canned-select]');
+    var box = document.getElementById(select.getAttribute('aria-controls'));
+    select.addEventListener('change', function () {
+      var text = select.value;
+      if (!text || !box) return;
+      var start = box.selectionStart, end = box.selectionEnd;
+      box.value = box.value.slice(0, start) + text + box.value.slice(end);
+      box.focus();
+      box.selectionStart = box.selectionEnd = start + text.length;
+      select.value = '';
+    });
+  }
+
   // Make whole strip rows/linked rows keyboard-free clickable without
   // nesting links: rows with data-href navigate on click.
   document.addEventListener('click', function (e) {

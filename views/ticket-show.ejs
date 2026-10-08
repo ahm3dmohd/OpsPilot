@@ -170,8 +170,17 @@
       </ol>
 
       <form action="/tickets/<%= ticket.ticketId %>/comment" method="POST" class="panel mt-6 p-4">
+        <% if (cannedResponses.length) { %>
+          <%# Hidden until public/js/app.js wires it up: without JavaScript it couldn't insert anything. %>
+          <label class="field mb-3 hidden" data-canned>Insert a canned response
+            <select class="input" data-canned-select aria-controls="commentBody">
+              <option value="">Choose a saved reply…</option>
+              <% cannedResponses.forEach(function(c) { %><option value="<%= c.body %>"><%= c.title %></option><% }) %>
+            </select>
+          </label>
+        <% } %>
         <label class="field">Add a comment
-          <textarea class="input" name="body" rows="3" required maxlength="5000" placeholder="<%= currentUser.role === 'end_user' ? 'Add details or answer a question from IT' : 'Reply to the requester' %>"></textarea>
+          <textarea class="input" id="commentBody" name="body" rows="3" required maxlength="5000" placeholder="<%= currentUser.role === 'end_user' ? 'Add details or answer a question from IT' : 'Reply to the requester' %>"></textarea>
         </label>
         <div class="mt-3 flex justify-end">
           <button type="submit" class="btn-primary"><%- icon('send') %> Post comment</button>

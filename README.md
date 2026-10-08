@@ -105,6 +105,8 @@ hanging).
 | Read / search / rate KB articles | ✅ | ✅ | ✅ |
 | Write / edit KB articles | ❌ | ✅ | ✅ |
 | Delete KB articles | ❌ | ❌ | ✅ |
+| Use / write / edit canned responses | ❌ | ✅ | ✅ |
+| Delete canned responses | ❌ | ❌ | ✅ |
 | Notifications | own | own | own |
 | Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
 | CSV export, AI evaluation page, duplicate-decision stats, audit log | ❌ | ❌ | ✅ |
@@ -272,6 +274,12 @@ as the seed tickets.
   and managers, so the requester's page, notifications and the CSV export
   never contain them. Posting one is a 403 for end users. The audit log
   records that a note was added, not its text.
+- **Canned responses** (`/canned`, staff only): saved replies with a title
+  and text. Staff pick one from a dropdown above the comment box and it is
+  inserted at the cursor, ready to edit before posting (a few lines of
+  vanilla JS in `public/js/app.js`; without JavaScript the dropdown is
+  hidden and the form works as before). Agents and managers add and edit
+  them; managers delete them. Three starter replies are seeded.
 - **Knowledge base** (`/kb`): browse and keyword search for everyone.
   Agents and managers can write and edit articles; managers can delete
   them. Each article tracks **views** (counted once per session) and
@@ -294,7 +302,8 @@ environment. Adding `nodemailer` behind an optional `SMTP_URL` inside
 **Also added:** a hash-chained audit log (`/audit`, managers only) that
 records logins, sign-ups, ticket creation, duplicate checks, claims,
 assignments, status changes, comments, internal notes (not their text),
-duplicate confirm/reject decisions, KB edits and CSV exports. Each entry's hash covers the
+duplicate confirm/reject decisions, canned-response edits, KB edits and
+CSV exports. Each entry's hash covers the
 previous entry, and the page verifies the whole chain, so editing or
 deleting history is detectable. It works in both modes, and a failed audit
 write never blocks the user's action.
@@ -332,13 +341,14 @@ routes/
   admin.routes.js          audit log, AI evaluation page, CSV export, duplicate-decision stats, help assistant
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
+  canned.routes.js         canned responses: list, create, edit, delete
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
-  seedData.js              demo users + seed tickets, shared by mock mode and npm run seed
+  seedData.js              demo users, seed tickets and starter canned responses, shared by mock mode and npm run seed
   embeddings.js            Gemini / OpenAI embeddings client with cache, timeout, never throws
   similarity.js            cosine, tokenizer, stemmer, Jaccard (hand-written)
   duplicates.js            the two duplicate-detection methods
@@ -365,6 +375,6 @@ docs/evaluation-results.md latest evaluation output
 views/                   EJS templates (partials/layout-top.ejs = app shell, partials/ticket-strip.ejs = flight strip)
 src/styles/app.css       Tailwind source: design tokens, components, dark mode
 public/css/app.css       compiled CSS (npm run build:css)
-public/js/app.js         theme toggle, mobile menu, "/" shortcut, confirm-before-merge
+public/js/app.js         theme toggle, mobile menu, "/" shortcut, confirm-before-merge, canned-response insert
 public/fonts/            IBM Plex (OFL licence)
 ```

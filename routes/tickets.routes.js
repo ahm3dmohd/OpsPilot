@@ -167,6 +167,7 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     internalNotes: staff ? await store.listInternalNotes(ticket.ticketId) : [],
     // Tickets merged into this one (their IDs are other people's tickets).
     mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
+    cannedResponses: staff ? await store.listCannedResponses() : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
     agents: user.role === 'manager' && !ticket.assigneeEmail ? await agentWorkloads() : [],
     flash: req.query.msg ? String(req.query.msg) : null,

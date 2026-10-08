@@ -175,6 +175,11 @@ async function main() {
       [endUser, 'GET', '/admin/duplicate-stats', 'end user -> duplicate stats'],
       [agent, 'GET', '/admin/duplicate-stats', 'agent -> duplicate stats'],
       [agent, 'GET', '/admin/duplicate-stats.csv', 'agent -> duplicate decisions CSV'],
+      [endUser, 'GET', '/canned', 'end user -> canned responses'],
+      [endUser, 'POST', '/canned', 'end user -> create canned response'],
+      [endUser, 'GET', '/canned/1/edit', 'end user -> edit canned response form'],
+      [endUser, 'POST', '/canned/1', 'end user -> edit canned response'],
+      [agent, 'POST', '/canned/1/delete', 'agent -> delete canned response'],
     ];
     for (const [c, method, url, label] of forbidden) {
       r = method === 'GET' ? await c.get(url) : await c.post(url, { body: 'x', status: 'Closed', title: 'x', description: 'x' });
@@ -412,11 +417,46 @@ async function main() {
     const csvLines = r.text.trim().split('\r\n').length - 1;
     check('filtered CSV export has exactly the listed rows', String(csvLines) === filteredCount && !r.text.includes('"Hardware"'), `(csv ${csvLines}, list ${filteredCount})`);
 
+    console.log('\nCanned responses');
+    r = await agent.get('/canned');
+    check('agent sees the canned responses page with starter replies', r.status === 200 && r.text.includes('Asking for more details'));
+    r = await agent.post('/canned', { title: '<b>Printer</b> reset', body: 'Turn the printer off & on again, then wait 30 seconds.' });
+    check('agent adds a canned response', r.status === 302 && r.location.includes('msg=created'));
+    r = await agent.post('/canned', { title: '', body: 'no title' });
+    check('canned response without a title is rejected (400)', r.status === 400);
+    r = await agent.get('/canned');
+    check('title is HTML-escaped on the list', r.text.includes('&lt;b&gt;Printer&lt;/b&gt; reset') && !r.text.includes('<b>Printer</b>'));
+    const cannedRow = r.text.split('data-canned-row').find((chunk) => chunk.includes('Printer&lt;/b&gt; reset')) || '';
+    const cannedId = (cannedRow.match(/\/canned\/([^/"]+)\/edit/) || [])[1];
+    check('new response has an edit link', !!cannedId);
+    check('agents get no Delete button', !r.text.includes(`/canned/${cannedId}/delete`));
+    r = await agent.get('/tickets/T-1005');
+    check('staff reply form has the canned dropdown with the escaped text', r.text.includes('data-canned-select') && r.text.includes('value="Turn the printer off &amp; on again, then wait 30 seconds."'));
+    r = await endUser.get('/tickets/T-1003');
+    check('requester reply form has no canned dropdown', r.status === 200 && !r.text.includes('data-canned'));
+    r = await agent.get(`/canned/${cannedId}/edit`);
+    check('agent opens the edit form', r.status === 200 && r.text.includes('Turn the printer off &amp; on again'));
+    r = await agent.post(`/canned/${cannedId}`, { title: 'Printer reset', body: 'Turn the printer off and on again.' });
+    check('agent edits it', r.status === 302 && r.location.includes('msg=saved'));
+    r = await agent.get('/canned');
+    check('edit is saved', r.text.includes('Printer reset') && r.text.includes('Turn the printer off and on again.') && !r.text.includes('wait 30 seconds'));
+    r = await agent.get('/canned/does-not-exist/edit');
+    check('unknown canned response is a 404', r.status === 404);
+    r = await manager.get('/canned');
+    check('managers get a Delete button', r.text.includes(`/canned/${cannedId}/delete`));
+    r = await manager.post(`/canned/${cannedId}/delete`);
+    check('manager deletes it', r.status === 302 && r.location.includes('msg=deleted'));
+    r = await agent.get('/canned');
+    check('deleted response is gone', !r.text.includes('Printer reset'));
+    r = await manager.post(`/canned/${cannedId}/delete`);
+    check('deleting it again is a 404', r.status === 404);
+
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
     check('audit logs duplicate decisions', r.text.includes('duplicate.confirm') && r.text.includes('duplicate.reject'));
+    check('audit logs canned response changes', ['canned.create', 'canned.update', 'canned.delete'].every((a) => r.text.includes(a)));
     check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });
     check('help assistant returns the password article', help.status === 200 && help.body.articles.some((a) => a.articleId === 'KB-02'));

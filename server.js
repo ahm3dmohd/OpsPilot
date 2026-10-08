@@ -132,6 +132,7 @@ app.use('/', require('./routes/admin.routes'));
 app.use('/tickets', require('./routes/tickets.routes'));
 app.use('/kb', require('./routes/kb.routes'));
 app.use('/notifications', require('./routes/notifications.routes'));
+app.use('/canned', require('./routes/canned.routes'));
 
 // ---- 404 ----
 app.use((req, res) => {
