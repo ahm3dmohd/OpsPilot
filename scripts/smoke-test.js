@@ -370,7 +370,7 @@ async function main() {
     r = await agent.get('/notifications');
     check('assignee was notified of the requester\'s reply', r.text.includes('Erin Carter commented on'));
     r = await endUser.get('/dashboard');
-    const unread = parseInt((r.text.match(/notif-count">(\d+)/) || [])[1] || '0', 10);
+    const unread = parseInt((r.text.match(/notif-count"[^>]*>(\d+)/) || [])[1] || '0', 10);
     check('nav shows an unread count', unread >= 3, `(got ${unread})`);
     r = await endUser.get('/notifications');
     const firstId = (r.text.match(/\/notifications\/([^/]+)\/open/) || [])[1];

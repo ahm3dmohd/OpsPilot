@@ -63,7 +63,11 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 - Help assistant is retrieval only (returns written KB articles, no generated
   text). End users never see other users' tickets or duplicate results.
 - UI: Tailwind v4, compiled (not CDN). Semantic colour tokens + dark mode in
-  `src/styles/app.css`. Classes built from data (`pill-<%= x %>`) must be listed
+  `src/styles/app.css`. Colour TEXT uses `text-brand-ink` (never `text-brand`,
+  which is for fills); text on a brand fill uses `text-on-brand`. Palettes
+  Approach (default) / Signage / Dusk / Harbour are a PREVIEW: once the owner
+  picks one, delete the others and the header palette picker. All new
+  palettes pass WCAG AA text contrast in light and dark; keep it that way. Classes built from data (`pill-<%= x %>`) must be listed
   in its `@source inline(...)` lines or they won't be generated.
 
 ## Still open

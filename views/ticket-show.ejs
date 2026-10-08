@@ -28,7 +28,7 @@
     <% if (!can('ticket.view_all')) { %>
       This ticket was closed as a duplicate: IT is already working on the same issue. If your problem is different, add a comment below.
     <% } else { %>
-      Merged into <a href="/tickets/<%= ticket.mergedInto %>" class="callsign text-brand"><%= ticket.mergedInto %></a> as a confirmed duplicate <span title="<%= fullDate(ticket.mergedAt) %>"><%= timeAgo(ticket.mergedAt) %></span>. Nothing here was deleted.
+      Merged into <a href="/tickets/<%= ticket.mergedInto %>" class="callsign text-brand-ink"><%= ticket.mergedInto %></a> as a confirmed duplicate <span title="<%= fullDate(ticket.mergedAt) %>"><%= timeAgo(ticket.mergedAt) %></span>. Nothing here was deleted.
     <% } %>
   </p>
 <% } %>
@@ -73,7 +73,7 @@
         <% if (mergedChildren.length) { %>
           <p class="border-b border-caution/30 px-5 py-2.5 text-sm text-ink-soft" data-merged-children>
             <%- icon('git-merge', 'size-3.5 inline') %> Merged into this ticket:
-            <% mergedChildren.forEach(function(c, i) { %><%= i ? ', ' : '' %><a href="/tickets/<%= c.ticketId %>" class="callsign text-brand"><%= c.ticketId %></a><% }) %>
+            <% mergedChildren.forEach(function(c, i) { %><%= i ? ', ' : '' %><a href="/tickets/<%= c.ticketId %>" class="callsign text-brand-ink"><%= c.ticketId %></a><% }) %>
           </p>
         <% } %>
         <% if (internalNotes.length) { %>
@@ -117,7 +117,7 @@
               <div class="panel px-4 py-3">
                 <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
                   <span class="font-semibold text-ink"><%= e.comment.authorName %></span>
-                  <% if (staff) { %><span class="text-xs text-brand">IT staff</span><% } %>
+                  <% if (staff) { %><span class="text-xs text-brand-ink">IT staff</span><% } %>
                   <span class="text-xs text-muted" title="<%= fullDate(e.at) %>"><%= timeAgo(e.at) %></span>
                 </p>
                 <p class="prose-text mt-1"><%= e.comment.body %></p>
@@ -226,7 +226,7 @@
             </span>
           </div>
           <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken" role="img" aria-label="<%= pct %>% of the <%= c.targetHours %> hour target used">
-            <span class="block h-full rounded-full <%= { breached: 'bg-danger', at_risk: 'bg-caution', ok: 'bg-brand', met: 'bg-ok' }[c.state] %>" style="width: <%= pct %>%"></span>
+            <span class="gauge-fill block h-full rounded-full <%= { breached: 'bg-danger', at_risk: 'bg-caution', ok: 'bg-brand', met: 'bg-ok' }[c.state] %>" style="width: <%= pct %>%"></span>
           </div>
           <p class="mt-1 text-xs text-muted">Target <%= duration(c.targetHours) %><%= c.state === 'waiting' ? ', starts when approved' : '' %></p>
         </div>

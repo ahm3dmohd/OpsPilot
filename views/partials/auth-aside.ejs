@@ -1,16 +1,16 @@
 <%# Left panel on login/register: what OpsPilot does, shown with sample strips. %>
-<aside class="relative hidden overflow-hidden bg-[#13233a] px-12 py-12 text-white lg:flex lg:flex-col">
+<aside class="relative hidden overflow-hidden bg-deep px-12 py-12 text-white lg:flex lg:flex-col">
   <div class="flex items-center gap-2.5">
-    <span class="flex size-8 items-center justify-center rounded-md bg-[#3fb3a9] text-[#13233a]"><%- icon('ticket', 'size-[18px]') %></span>
+    <span class="flex size-8 items-center justify-center rounded-md bg-brand text-on-brand"><%- icon('ticket', 'size-[18px]') %></span>
     <span class="text-[17px] font-semibold tracking-tight">OpsPilot</span>
   </div>
   <div class="mt-auto max-w-lg">
     <p class="text-3xl leading-tight font-semibold tracking-tight">Every IT request, on one board, with its clock running.</p>
     <p class="mt-3 text-[15px] text-white/70">Tickets are triaged by priority, matched against similar past issues, and flagged before they miss their response time.</p>
     <div class="mt-8 space-y-px overflow-hidden rounded-lg border border-white/10 text-[14px]" aria-hidden="true">
-      <% [['T-1004', 'VPN unstable since this morning', '#c9611a', '1h 50m left', 'text-white/80'],
-          ['T-1007', "Account locked, can't reset password", '#b7791f', '6h left', 'text-white/80'],
-          ['T-1008', 'Printer on 3rd floor not responding', '#2f5f9e', '16h over', 'text-[#f0776b]']].forEach(function(s) { %>
+      <% [['T-1004', 'VPN unstable since this morning', 'var(--color-high)', '1h 50m left', 'text-white/80'],
+          ['T-1007', "Account locked, can't reset password", 'var(--color-caution)', '6h left', 'text-white/80'],
+          ['T-1008', 'Printer on 3rd floor not responding', 'var(--color-info)', '16h over', 'text-[#f7a0a0]']].forEach(function(s) { %>
         <div class="relative grid grid-cols-[4.5rem_1fr_auto] items-center gap-4 bg-white/5 py-3 pr-4 pl-5">
           <span class="absolute inset-y-0 left-0 w-1.5" style="background: <%= s[2] %>"></span>
           <span class="font-mono text-[13px] text-white/60"><%= s[0] %></span>

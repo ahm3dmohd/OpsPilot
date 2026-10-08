@@ -20,7 +20,7 @@
         <article class="panel overflow-hidden" data-pending-step="<%= s.id %>" data-ticket-id="<%= t.ticketId %>">
           <div class="px-5 py-4">
             <div class="flex flex-wrap items-center gap-2">
-              <a href="/tickets/<%= t.ticketId %>" class="callsign text-brand"><%= t.ticketId %></a>
+              <a href="/tickets/<%= t.ticketId %>" class="callsign text-brand-ink"><%= t.ticketId %></a>
               <%- include('partials/type-pill', { type: t.type }) %>
               <span class="dept-tag" title="Target department"><%= t.department || 'IT' %></span>
               <span class="text-xs text-muted">Step <%= s.order %>: <%= s.label %></span>
@@ -46,7 +46,7 @@
         <tbody>
           <% decided.forEach(function(s) { %>
             <tr>
-              <td><a href="/tickets/<%= s.ticketId %>" class="callsign text-brand"><%= s.ticketId %></a> <%= s.ticket.title %></td>
+              <td><a href="/tickets/<%= s.ticketId %>" class="callsign text-brand-ink"><%= s.ticketId %></a> <%= s.ticket.title %></td>
               <td><%= s.label %></td>
               <td><span class="pill-step-<%= s.status %>"><%= s.status === 'approved' ? 'Approved' : 'Rejected' %></span></td>
               <td class="max-w-xs"><%= s.comment || '' %></td>

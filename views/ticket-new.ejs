@@ -17,7 +17,7 @@
         <span class="mt-2 block text-sm text-muted">Something that used to work doesn't: no network, a crashing app, a printer that won't print. Goes straight to the department's queue.</span>
       </a>
       <a href="/tickets/new?type=service_request" class="type-card" data-choose="service_request">
-        <span class="flex items-center gap-2 text-lg font-semibold text-ink"><%- icon('package', 'size-5 text-brand') %> I need something new</span>
+        <span class="flex items-center gap-2 text-lg font-semibold text-ink"><%- icon('package', 'size-5 text-brand-ink') %> I need something new</span>
         <span class="mt-1 block font-medium text-ink-soft">Service request</span>
         <span class="mt-2 block text-sm text-muted">Access to a system, new equipment, a new app or report. Your line manager and department head approve it before the work starts.</span>
       </a>
@@ -41,7 +41,7 @@
         <div class="divide-y divide-line">
           <% help.ownTickets.forEach(function(t) { %>
             <p class="px-5 py-3 text-sm">You already have an open ticket that looks related:
-              <a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand"><%= t.ticketId %></span> <%= t.title %></a> (<%= t.status %>). You can add a comment there instead.</p>
+              <a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand-ink"><%= t.ticketId %></span> <%= t.title %></a> (<%= t.status %>). You can add a comment there instead.</p>
           <% }) %>
           <% help.articles.forEach(function(a) { %>
             <div class="px-5 py-3">

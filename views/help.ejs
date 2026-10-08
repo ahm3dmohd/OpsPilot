@@ -13,7 +13,7 @@
       <section class="panel mt-6 panel-body">
         <h2 class="text-base">You already have a related ticket</h2>
         <% result.ownTickets.forEach(function(t) { %>
-          <p class="mt-2 text-sm"><a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand"><%= t.ticketId %></span> <%= t.title %></a> <span class="text-muted">(<%= t.status %>)</span></p>
+          <p class="mt-2 text-sm"><a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand-ink"><%= t.ticketId %></span> <%= t.title %></a> <span class="text-muted">(<%= t.status %>)</span></p>
         <% }) %>
       </section>
     <% } %>

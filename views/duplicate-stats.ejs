@@ -43,8 +43,8 @@
             <tr>
               <td class="whitespace-nowrap" title="<%= fullDate(d.createdAt) %>"><%= timeAgo(d.createdAt) %></td>
               <td class="whitespace-nowrap">
-                <a href="/tickets/<%= d.ticketId %>" class="callsign text-brand"><%= d.ticketId %></a> &amp;
-                <a href="/tickets/<%= d.candidateId %>" class="callsign text-brand"><%= d.candidateId %></a>
+                <a href="/tickets/<%= d.ticketId %>" class="callsign text-brand-ink"><%= d.ticketId %></a> &amp;
+                <a href="/tickets/<%= d.candidateId %>" class="callsign text-brand-ink"><%= d.candidateId %></a>
               </td>
               <td><%= d.decision === 'confirmed' ? 'Confirmed, ' + d.mergedId + ' merged into ' + d.primaryId : 'Rejected' %></td>
               <td><%= labels[d.flaggedBy] %></td>

@@ -40,31 +40,187 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-canvas: #eef2f6;     /* page background */
-  --color-surface: #ffffff;    /* panels, strips */
-  --color-sunken: #f5f7fa;     /* inputs, table heads, hover */
-  --color-line: #d9e0e8;       /* borders */
-  --color-ink: #13233a;        /* main text */
-  --color-ink-soft: #3d4f66;   /* secondary text */
-  --color-muted: #66768a;      /* hints, meta */
+  /* brand = fills (buttons, bars); brand-ink = brand-coloured TEXT and
+     links (readable on surface); on-brand = text on a brand fill; deep =
+     the dark panel on the login page. */
 
-  --color-brand: #11706b;      /* actions, links, focus */
-  --color-brand-ink: #0b4f4b;
-  --color-brand-soft: #e3f1ef;
-
-  --color-ok: #2f7d4f;
-  --color-ok-soft: #e4f2e9;
-  --color-caution: #b7791f;    /* SLA at risk, Medium */
-  --color-caution-soft: #fbf1df;
-  --color-danger: #c2382c;     /* SLA breached, Urgent, errors */
-  --color-danger-soft: #fbe6e3;
-  --color-info: #2f5f9e;       /* Open, Low */
-  --color-info-soft: #e5edf8;
-  --color-high: #c9611a;       /* High priority */
-  --color-high-soft: #fcebdc;
+  --color-canvas: #f2f4f8;
+  --color-surface: #ffffff;
+  --color-sunken: #f6f7fb;
+  --color-line: #dce1ec;
+  --color-ink: #141b2d;
+  --color-ink-soft: #3b4560;
+  --color-muted: #5c6683;
+  --color-brand: #2e4bc6;
+  --color-brand-ink: #22389a;
+  --color-brand-soft: #e7ebfb;
+  --color-on-brand: #ffffff;
+  --color-deep: #121a33;
+  --color-ok: #23784a;
+  --color-ok-soft: #e3f3ea;
+  --color-caution: #8f580a;
+  --color-caution-soft: #fbf0dc;
+  --color-danger: #c42f3a;
+  --color-danger-soft: #fce6e8;
+  --color-info: #0e7490;
+  --color-info-soft: #e0f2f6;
+  --color-high: #a3431a;
+  --color-high-soft: #fceadf;
 }
 
+/* ---- Palettes ----
+ * Default (no data-palette): Approach - cobalt like the blue taxiway-edge
+ * lights, on a cool grey apron. The others are PREVIEWS chosen with the
+ * palette picker in the header; delete the ones that aren't kept.
+ * Every palette defines every token, light and dark. */
 .dark {
+  --color-canvas: #0d1222;
+  --color-surface: #141b2f;
+  --color-sunken: #10172a;
+  --color-line: #263152;
+  --color-ink: #e8ecf7;
+  --color-ink-soft: #b7c0da;
+  --color-muted: #8590b0;
+  --color-brand: #7d95f7;
+  --color-brand-ink: #a9b9fa;
+  --color-brand-soft: #1c2550;
+  --color-on-brand: #0d1222;
+  --color-deep: #0a0f1e;
+  --color-ok: #5cc28a;
+  --color-ok-soft: #12301f;
+  --color-caution: #e3ae52;
+  --color-caution-soft: #33271a;
+  --color-danger: #f27a83;
+  --color-danger-soft: #3a1c22;
+  --color-info: #4cc1db;
+  --color-info-soft: #0f2d36;
+  --color-high: #f4955b;
+  --color-high-soft: #3a2416;
+}
+
+[data-palette="signage"] {
+  --color-canvas: #ecedef;
+  --color-surface: #ffffff;
+  --color-sunken: #f4f4f5;
+  --color-line: #d6d8dc;
+  --color-ink: #16181c;
+  --color-ink-soft: #3e434c;
+  --color-muted: #5e636c;
+  --color-brand: #f5c400;
+  --color-brand-ink: #6b5000;
+  --color-brand-soft: #fff4c2;
+  --color-on-brand: #16181c;
+  --color-deep: #16181c;
+  --color-ok: #1f7a46;
+  --color-ok-soft: #e3f3ea;
+  --color-caution: #a8380b;
+  --color-caution-soft: #fdebdd;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fde4e4;
+  --color-info: #2459a8;
+  --color-info-soft: #e4ecf8;
+  --color-high: #b0185a;
+  --color-high-soft: #fbe3ee;
+}
+.dark[data-palette="signage"] {
+  --color-canvas: #111214;
+  --color-surface: #1a1c20;
+  --color-sunken: #15161a;
+  --color-line: #2c2f36;
+  --color-ink: #ecedef;
+  --color-ink-soft: #bec2c9;
+  --color-muted: #8b919b;
+  --color-brand: #ffd21f;
+  --color-brand-ink: #ffd21f;
+  --color-brand-soft: #3a3210;
+  --color-on-brand: #111214;
+  --color-deep: #0b0c0e;
+  --color-ok: #5cc28a;
+  --color-ok-soft: #12301f;
+  --color-caution: #f08a4b;
+  --color-caution-soft: #3a2416;
+  --color-danger: #f26b6b;
+  --color-danger-soft: #3a1a1a;
+  --color-info: #7aa7ea;
+  --color-info-soft: #172a44;
+  --color-high: #f06a9b;
+  --color-high-soft: #3a1828;
+}
+
+[data-palette="dusk"] {
+  --color-canvas: #f4f2f7;
+  --color-surface: #ffffff;
+  --color-sunken: #f8f7fa;
+  --color-line: #e0dce8;
+  --color-ink: #1f1a2b;
+  --color-ink-soft: #463f57;
+  --color-muted: #736b85;
+  --color-brand: #5b3fa0;
+  --color-brand-ink: #45307d;
+  --color-brand-soft: #eee9f8;
+  --color-on-brand: #ffffff;
+  --color-deep: #1f1730;
+  --color-ok: #276b43;
+  --color-ok-soft: #e4f2e9;
+  --color-caution: #8a590b;
+  --color-caution-soft: #faf0dc;
+  --color-danger: #c0344a;
+  --color-danger-soft: #fbe5e9;
+  --color-info: #2f63a8;
+  --color-info-soft: #e5edf8;
+  --color-high: #a3461a;
+  --color-high-soft: #fceadf;
+}
+.dark[data-palette="dusk"] {
+  --color-canvas: #13101b;
+  --color-surface: #1c1827;
+  --color-sunken: #17131f;
+  --color-line: #322b44;
+  --color-ink: #ede9f5;
+  --color-ink-soft: #c3bbd5;
+  --color-muted: #9289a8;
+  --color-brand: #a98bf0;
+  --color-brand-ink: #c7b3f7;
+  --color-brand-soft: #2c2147;
+  --color-on-brand: #13101b;
+  --color-deep: #0d0a14;
+  --color-ok: #5cc28a;
+  --color-ok-soft: #12301f;
+  --color-caution: #e3ae52;
+  --color-caution-soft: #33271a;
+  --color-danger: #f27a8c;
+  --color-danger-soft: #3a1c24;
+  --color-info: #7fa8ea;
+  --color-info-soft: #172a44;
+  --color-high: #f4955b;
+  --color-high-soft: #3a2416;
+}
+
+[data-palette="harbour"] {
+  --color-canvas: #eef2f6;
+  --color-surface: #ffffff;
+  --color-sunken: #f5f7fa;
+  --color-line: #d9e0e8;
+  --color-ink: #13233a;
+  --color-ink-soft: #3d4f66;
+  --color-muted: #66768a;
+  --color-brand: #11706b;
+  --color-brand-ink: #0b4f4b;
+  --color-brand-soft: #e3f1ef;
+  --color-on-brand: #ffffff;
+  --color-deep: #13233a;
+  --color-ok: #2f7d4f;
+  --color-ok-soft: #e4f2e9;
+  --color-caution: #b7791f;
+  --color-caution-soft: #fbf1df;
+  --color-danger: #c2382c;
+  --color-danger-soft: #fbe6e3;
+  --color-info: #2f5f9e;
+  --color-info-soft: #e5edf8;
+  --color-high: #c9611a;
+  --color-high-soft: #fcebdc;
+}
+.dark[data-palette="harbour"] {
   --color-canvas: #0d1620;
   --color-surface: #142130;
   --color-sunken: #0f1a26;
@@ -72,11 +228,11 @@
   --color-ink: #e6edf5;
   --color-ink-soft: #b5c3d3;
   --color-muted: #8597ab;
-
   --color-brand: #3fb3a9;
   --color-brand-ink: #7fd6cd;
   --color-brand-soft: #123532;
-
+  --color-on-brand: #0d1620;
+  --color-deep: #0a121b;
   --color-ok: #5cbf86;
   --color-ok-soft: #133024;
   --color-caution: #e0a94a;
@@ -101,8 +257,8 @@
   h1 { @apply text-2xl font-semibold tracking-tight text-ink; }
   h2 { @apply text-lg font-semibold text-ink; }
   h3 { @apply text-base font-semibold text-ink; }
-  a { @apply text-brand underline-offset-2 hover:underline; }
-  :focus-visible { @apply outline-2 outline-offset-2 outline-brand; }
+  a { @apply text-brand-ink underline-offset-2 hover:underline; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand-ink; }
   code { @apply font-mono text-[0.85em]; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -115,9 +271,9 @@
 
 /* Buttons */
 @utility btn {
-  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-3.5 py-2 text-sm font-medium whitespace-nowrap no-underline transition-colors hover:no-underline disabled:opacity-50;
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-3.5 py-2 text-sm font-medium whitespace-nowrap no-underline transition-[color,background-color,border-color,filter,transform] duration-150 ease-out hover:no-underline active:scale-[0.97] disabled:opacity-50;
 }
-@utility btn-primary { @apply btn bg-brand text-white hover:bg-brand-ink dark:text-canvas; }
+@utility btn-primary { @apply btn bg-brand text-on-brand hover:brightness-110; }
 @utility btn-secondary { @apply btn border-line bg-surface text-ink hover:bg-sunken; }
 @utility btn-danger { @apply btn border-danger/40 bg-surface text-danger hover:bg-danger-soft; }
 @utility btn-ghost { @apply btn text-ink-soft hover:bg-sunken hover:text-ink; }
@@ -172,8 +328,10 @@
 @utility pill-role { @apply pill bg-brand-soft text-brand-ink; }
 /* Duplicate score bar: fill = score, tick = threshold. */
 @utility score-bar { @apply relative h-2 flex-1 overflow-visible rounded-full bg-sunken; }
-@utility score-fill { @apply block h-full rounded-full bg-brand; }
-@utility score-threshold { @apply absolute -top-1 h-4 w-0.5 -translate-x-1/2 bg-ink; }
+@utility score-fill { @apply block h-full origin-left rounded-full bg-brand; animation: gauge-sweep 700ms cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 90ms); }
+@utility score-threshold { @apply absolute -top-1 h-4 w-0.5 -translate-x-1/2 bg-ink; animation: tick-in 300ms ease-out both; animation-delay: calc(500ms + var(--i, 0) * 90ms); }
+/* SLA bars on the ticket page sweep the same way. */
+@utility gauge-fill { @apply origin-left; animation: gauge-sweep 700ms cubic-bezier(.2,.8,.2,1) both; }
 /* Which method(s) found a suggestion: text labels, colour only helps. */
 @utility agree-tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium; }
 @utility agree-tag-both { @apply agree-tag bg-ok-soft text-ok; }
@@ -191,7 +349,8 @@
    ticket's priority; the right column is the SLA clock. */
 @utility strip {
   @apply relative grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 border-b border-line bg-surface py-3 pr-4 pl-5 text-ink no-underline transition-colors last:border-b-0 hover:bg-sunken hover:no-underline sm:grid-cols-[5.5rem_1fr_auto_8.5rem];
-  &::before { content: ""; @apply absolute inset-y-0 left-0 w-1.5; }
+  &::before { content: ""; @apply absolute inset-y-0 left-0 w-1.5 transition-[width] duration-200 ease-out; }
+  &:hover::before, &:focus-visible::before { @apply w-3; }
 }
 @utility strip-low { &::before { @apply bg-info; } }
 @utility strip-medium { &::before { @apply bg-caution; } }
@@ -213,7 +372,7 @@
 }
 
 /* Messages */
-@utility notice { @apply rounded-md border px-4 py-3 text-sm; }
+@utility notice { @apply rounded-md border px-4 py-3 text-sm; animation: notice-in 260ms ease-out both; }
 @utility notice-error { @apply notice border-danger/30 bg-danger-soft text-danger; }
 @utility notice-ok { @apply notice border-ok/30 bg-ok-soft text-ok; }
 @utility notice-info { @apply notice border-info/30 bg-info-soft text-info; }
@@ -230,6 +389,24 @@
 }
 @utility gauge-value { @apply text-3xl font-semibold tracking-tight tabular-nums; }
 @utility gauge-label { @apply text-[13px] text-muted; }
+
+/* Unread / waiting counters pop in so a new one gets noticed. */
+@utility count-badge { animation: badge-pop 420ms cubic-bezier(.3,1.6,.5,1) both; }
+
+/* ---- Motion ----
+ * Only where it answers an action or draws the eye to something that
+ * matters: gauges sweep to their value once, confirmations slide in,
+ * badges pop, strips and buttons respond. Reduced-motion users get none
+ * (see the base layer). */
+@keyframes gauge-sweep { from { transform: scaleX(0); } }
+@keyframes tick-in { from { opacity: 0; transform: translateX(-50%) scaleY(0); } }
+@keyframes notice-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes badge-pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+@keyframes reveal { from { opacity: 0; transform: translateY(-4px); } }
+/* The filter panel's contents appear as it opens. */
+details[open] > summary ~ * { animation: reveal 200ms ease-out; }
+/* Light/dark and palette switches crossfade (View Transitions, where supported). */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 280ms; }
 
 /* Long-form text (descriptions, comments, KB articles) */
 @utility prose-text { @apply max-w-[72ch] text-[15px] leading-7 whitespace-pre-wrap text-ink; }

@@ -13,7 +13,7 @@
     <aside id="sidebar" data-open="false"
       class="fixed inset-y-0 left-0 z-40 flex w-60 -translate-x-full flex-col border-r border-line bg-surface transition-transform data-[open=true]:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
       <a href="/dashboard" class="flex items-center gap-2.5 px-5 py-5 no-underline hover:no-underline">
-        <span class="flex size-8 items-center justify-center rounded-md bg-brand text-white dark:text-canvas"><%- icon('ticket', 'size-[18px]') %></span>
+        <span class="flex size-8 items-center justify-center rounded-md bg-brand text-on-brand"><%- icon('ticket', 'size-[18px]') %></span>
         <span class="text-[17px] font-semibold tracking-tight text-ink">OpsPilot</span>
       </a>
 
@@ -29,7 +29,7 @@
         <% } %>
         <a href="/approvals" class="nav-link" <%- on('/approvals') %>>
           <%- icon('stamp') %> My approvals
-          <% if (approvalCount) { %><span class="ml-auto rounded-full bg-caution px-1.5 text-xs font-semibold text-white approval-count" aria-label="<%= approvalCount %> waiting"><%= approvalCount %></span><% } %>
+          <% if (approvalCount) { %><span class="ml-auto rounded-full bg-caution px-1.5 text-xs font-semibold text-white approval-count" data-badge="approvals" data-value="<%= approvalCount %>" aria-label="<%= approvalCount %> waiting"><%= approvalCount %></span><% } %>
         </a>
         <a href="/kb" class="nav-link" <%- on('/kb') %>><%- icon('book-open') %> Knowledge base</a>
         <% if (can('canned.use')) { %>
@@ -37,7 +37,7 @@
         <% } %>
         <a href="/notifications" class="nav-link" <%- on('/notifications') %>>
           <%- icon('bell') %> Notifications
-          <% if (unreadCount) { %><span class="ml-auto rounded-full bg-danger px-1.5 text-xs font-semibold text-white notif-count"><%= unreadCount %></span><% } %>
+          <% if (unreadCount) { %><span class="ml-auto rounded-full bg-danger px-1.5 text-xs font-semibold text-white notif-count" data-badge="notifications" data-value="<%= unreadCount %>"><%= unreadCount %></span><% } %>
         </a>
         <% if (can('report.view') || can('audit.view') || can('report.export')) { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Reports</p>
@@ -93,6 +93,14 @@
           </form>
         <% } %>
         <div class="ml-auto flex items-center gap-1">
+          <%# Palette PREVIEW picker - remove once a palette is chosen. %>
+          <label class="sr-only" for="paletteSelect">Colour palette (preview)</label>
+          <select id="paletteSelect" class="input w-auto py-1 pr-7 text-[13px]" title="Colour palette (preview)">
+            <option value="approach">Approach</option>
+            <option value="signage">Signage</option>
+            <option value="dusk">Dusk</option>
+            <option value="harbour">Harbour (current)</option>
+          </select>
           <button type="button" id="themeToggle" class="btn-ghost px-2" aria-label="Switch to dark mode">
             <span class="dark:hidden"><%- icon('moon') %></span><span class="hidden dark:inline"><%- icon('sun') %></span>
           </button>

@@ -11,6 +11,8 @@
       var saved = localStorage.getItem('opspilot-theme');
       var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (dark) document.documentElement.classList.add('dark');
+      var palette = localStorage.getItem('opspilot-palette');
+      if (palette && palette !== 'approach') document.documentElement.setAttribute('data-palette', palette);
     } catch (e) {}
   })();
 </script>

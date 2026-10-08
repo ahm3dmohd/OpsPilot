@@ -7,14 +7,46 @@
     var dark = document.documentElement.classList.contains('dark');
     toggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
   }
+  // Crossfade colour changes where the browser supports View Transitions.
+  function smoothly(change) {
+    var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (document.startViewTransition && !still) document.startViewTransition(change);
+    else change();
+  }
   if (toggle) {
     syncLabel();
     toggle.addEventListener('click', function () {
-      var dark = document.documentElement.classList.toggle('dark');
-      try { localStorage.setItem('opspilot-theme', dark ? 'dark' : 'light'); } catch (e) {}
-      syncLabel();
+      smoothly(function () {
+        var dark = document.documentElement.classList.toggle('dark');
+        try { localStorage.setItem('opspilot-theme', dark ? 'dark' : 'light'); } catch (e) {}
+        syncLabel();
+      });
     });
   }
+
+  // Palette preview picker (the choice is remembered per browser).
+  var palette = document.getElementById('paletteSelect');
+  if (palette) {
+    palette.value = document.documentElement.getAttribute('data-palette') || 'approach';
+    palette.addEventListener('change', function () {
+      var value = palette.value;
+      smoothly(function () {
+        if (value === 'approach') document.documentElement.removeAttribute('data-palette');
+        else document.documentElement.setAttribute('data-palette', value);
+      });
+      try { localStorage.setItem('opspilot-palette', value); } catch (e) {}
+    });
+  }
+
+  // Unread / waiting badges pop only when the number went UP since the
+  // last page, so they draw the eye when there's something new.
+  document.querySelectorAll('[data-badge]').forEach(function (badge) {
+    var key = 'opspilot-badge-' + badge.dataset.badge;
+    var now = parseInt(badge.dataset.value, 10) || 0;
+    var before = 0;
+    try { before = parseInt(localStorage.getItem(key), 10) || 0; localStorage.setItem(key, String(now)); } catch (e) {}
+    if (now > before) badge.classList.add('count-badge');
+  });
 
   // Mobile sidebar.
   var sidebar = document.getElementById('sidebar');

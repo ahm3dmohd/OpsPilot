@@ -29,7 +29,7 @@
       <tbody>
         <% articles.forEach(function(a) { var votes = a.helpful + a.notHelpful; %>
           <tr class="cursor-pointer hover:bg-sunken" data-href="/kb/<%= a.articleId %>">
-            <td><a href="/kb/<%= a.articleId %>" class="callsign text-brand"><%= a.articleId %></a></td>
+            <td><a href="/kb/<%= a.articleId %>" class="callsign text-brand-ink"><%= a.articleId %></a></td>
             <td class="font-medium"><%= a.title %></td>
             <td class="text-ink-soft"><%= a.category %></td>
             <% if (staff) { %>

@@ -27,7 +27,7 @@
         <% steps.forEach(function(s) { var nameOf = function(e) { var u = users.find(function(x) { return x.email === e; }); return u ? u.name : e; }; %>
           <tr data-open-step="<%= s.id %>" data-ticket-id="<%= s.ticketId %>">
             <td>
-              <a href="/tickets/<%= s.ticketId %>" class="callsign text-brand"><%= s.ticketId %></a>
+              <a href="/tickets/<%= s.ticketId %>" class="callsign text-brand-ink"><%= s.ticketId %></a>
               <span class="block"><%= s.ticket.title %></span>
               <span class="block text-xs text-muted">From <%= s.ticket.requesterName %>, to <%= s.ticket.department || 'IT' %></span>
             </td>
