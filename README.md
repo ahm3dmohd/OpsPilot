@@ -94,7 +94,12 @@ hanging).
 
 ## Roles and access
 
-Admins (new) can do everything a manager can, plus the rows marked admin.
+Access is permission-based: `lib/permissions.js` maps each role to a list
+of permissions (`ticket.claim`, `report.export`, `settings.edit`, ...).
+Routes use `requirePermission('...')` and views `can('...')`; nothing else
+compares role names, and a misspelled permission stops the server from
+starting. Admins can see the full matrix at `/admin/permissions`. The admin
+role lists every manager permission explicitly, plus the rows marked admin.
 
 | | End User | Agent | Manager |
 |---|---|---|---|
@@ -295,7 +300,7 @@ as the seed tickets.
   You're never notified about your own actions. A failed notification
   never undoes the action that triggered it.
 - **User & role management** (`/admin/users`, admins only): a role
-  dropdown per user. Enforced in the route (`requireRole('admin')`) and in
+  dropdown per user. Enforced in the route (`requirePermission('user.manage')`) and in
   `lib/roles.js`: nobody can change their own role, and the last admin
   can't be demoted (re-checked after the write, in case two admins demote
   each other at once). The role is re-read from the database on every
@@ -424,7 +429,7 @@ routes/
   users.routes.js          admin: users, roles, departments, open approvals, settings (mounted at /admin)
   approvals.routes.js      My approvals: list, approve, reject
   (tickets.routes.js also serves the filtered list at GET /tickets)
-middleware/auth.js       requireLogin / requireRole guards, asyncHandler
+middleware/auth.js       requireLogin / requirePermission guards, asyncHandler
 models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department, ApprovalStep, Setting
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
@@ -435,6 +440,7 @@ lib/
   duplicates.js            the two duplicate-detection methods
   duplicateDecisions.js    confirm (merge) / reject a suggested pair, decision stats
   roles.js                 role changes with the self / last-admin safeguards
+  permissions.js           role -> permissions map, can(); the only place roles are checked
   org.js                   department / line manager / head edits with validation
   approvals.js             service-request approval chain, skips, decisions, reassignment
   settings.js              admin-changeable settings (live thresholds), cached in memory

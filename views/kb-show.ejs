@@ -1,5 +1,5 @@
 <%- include('partials/layout-top', { title: article.title }) %>
-<% var staff = currentUser.role !== 'end_user'; %>
+<% var staff = can('kb.edit'); %>
 
 <a href="/kb" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> Knowledge base</a>
 
@@ -30,7 +30,7 @@
   <% if (staff) { %>
     <div class="mt-6 flex flex-wrap items-center gap-3">
       <a href="/kb/<%= article.articleId %>/edit" class="btn-secondary"><%- icon('pencil') %> Edit</a>
-      <% if (managerRights) { %>
+      <% if (can('kb.delete')) { %>
         <form action="/kb/<%= article.articleId %>/delete" method="POST" onsubmit="return confirm('Delete this article? This cannot be undone.');">
           <button type="submit" class="btn-danger"><%- icon('trash-2') %> Delete</button>
         </form>

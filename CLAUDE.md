@@ -48,9 +48,10 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 - Confirm = merge NEWER into OLDER; the merged ticket's comments are copied
   to the primary as a staff-only internal note (requesters differ). The
   decision stats are precision only, never call them recall/accuracy.
-- Roles: end_user, agent, manager (= service-desk manager), admin. Admin has
-  every manager right (requireRole('manager') also admits admin; views use
-  `managerRights`). Line managers and department heads are ORG LINKS, not
+- Roles: end_user, agent, manager (= service-desk manager), admin. What each
+  can do is ONLY in lib/permissions.js: routes use requirePermission('x.y'),
+  views use can('x.y'). Never compare role names in routes/views; add or
+  move a permission in the map instead. Line managers and department heads are ORG LINKS, not
   roles. Role is re-read from the DB on every request (server.js).
 - Users are referenced by EMAIL everywhere (managerEmail, headEmail,
   assigneeEmail), never by _id. Departments by `code` (e.g. "IT").

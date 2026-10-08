@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
-const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
+const { requireLogin, requirePermission, asyncHandler } = require('../middleware/auth');
 const assistant = require('../lib/assistant');
 const { runEvaluation } = require('../lib/evaluation');
 const { toCsv } = require('../lib/csv');
@@ -10,7 +10,7 @@ const filtering = require('../lib/ticketFilters');
 const decisions = require('../lib/duplicateDecisions');
 
 // ---- Audit log (managers only) ----
-router.get('/audit', requireRole('manager'), asyncHandler(async (req, res) => {
+router.get('/audit', requirePermission('audit.view'), asyncHandler(async (req, res) => {
   const [entries, integrity] = await Promise.all([store.listAudit(200), store.verifyAudit()]);
   res.render('audit', { entries, integrity });
 }));
@@ -18,7 +18,7 @@ router.get('/audit', requireRole('manager'), asyncHandler(async (req, res) => {
 // ---- AI-vs-baseline evaluation (managers only) ----
 // Same computation as `npm run evaluate`, on the fixed seed + held-out
 // sets, so supervisors can see the measured result without a terminal.
-router.get('/evaluation', requireRole('manager'), asyncHandler(async (req, res) => {
+router.get('/evaluation', requirePermission('report.view'), asyncHandler(async (req, res) => {
   res.render('evaluation', { r: await runEvaluation() });
 }));
 
@@ -27,7 +27,7 @@ router.get('/evaluation', requireRole('manager'), asyncHandler(async (req, res) 
 // filtered list downloads exactly those rows. No filters = all tickets.
 const hoursBetween = (a, b) => (a && b ? Math.round(((new Date(b) - new Date(a)) / 3600000) * 10) / 10 : '');
 
-router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (req, res) => {
+router.get('/reports/tickets.csv', requirePermission('report.export'), asyncHandler(async (req, res) => {
   const now = new Date();
   const filters = filtering.parseFilters(req.query);
   const tickets = filtering.applyFilters(filtering.withSla(await store.listTickets({}), now), filters);
@@ -65,11 +65,11 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
 
 // ---- Duplicate decisions: how often agents confirmed each method's
 // suggestions (managers only). Page + one-row-per-decision CSV. ----
-router.get('/admin/duplicate-stats', requireRole('manager'), asyncHandler(async (req, res) => {
+router.get('/admin/duplicate-stats', requirePermission('report.view'), asyncHandler(async (req, res) => {
   res.render('duplicate-stats', await decisions.stats());
 }));
 
-router.get('/admin/duplicate-stats.csv', requireRole('manager'), asyncHandler(async (req, res) => {
+router.get('/admin/duplicate-stats.csv', requirePermission('report.export'), asyncHandler(async (req, res) => {
   const { rows: summary, decisions: list } = await decisions.stats();
   const headers = [
     'decidedAt', 'ticketId', 'candidateId', 'decision', 'flaggedBy',

@@ -1,3 +1,5 @@
+const { can, assertKnown } = require('../lib/permissions');
+
 function requireLogin(req, res, next) {
   if (!req.session.user) {
     return res.redirect('/login');
@@ -5,15 +7,16 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// Admins can do everything a manager can, so any route open to 'manager'
-// is open to 'admin' too. Routes only for admins use requireRole('admin').
-function requireRole(...roles) {
-  const allowed = roles.includes('manager') ? [...roles, 'admin'] : roles;
+// Route guard: the logged-in user's role must grant `permission` (see
+// lib/permissions.js). The name is checked when the route is defined, so
+// a typo stops the server from starting instead of locking everyone out.
+function requirePermission(permission) {
+  assertKnown(permission);
   return (req, res, next) => {
     if (!req.session.user) {
       return res.redirect('/login');
     }
-    if (!allowed.includes(req.session.user.role)) {
+    if (!can(req.session.user, permission)) {
       return res.status(403).render('403', { title: 'Access denied' });
     }
     next();
@@ -27,4 +30,4 @@ function asyncHandler(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
-module.exports = { requireLogin, requireRole, asyncHandler };
+module.exports = { requireLogin, requirePermission, asyncHandler };

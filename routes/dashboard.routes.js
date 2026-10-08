@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, asyncHandler } = require('../middleware/auth');
-const { STATUSES, PRIORITIES, CATEGORIES, hasManagerRights } = require('../lib/constants');
+const { STATUSES, PRIORITIES, CATEGORIES } = require('../lib/constants');
+const { can } = require('../lib/permissions');
 const { withSla, applyFilters, stat } = require('../lib/ticketFilters');
 
 const SLA_ORDER = { breached: 0, at_risk: 1, ok: 2, met: 3, waiting: 4 };
@@ -12,12 +13,13 @@ router.get('/', requireLogin, (req, res) => res.redirect('/dashboard'));
 router.get('/dashboard', requireLogin, asyncHandler(async (req, res) => {
   const user = req.session.user;
 
-  if (user.role === 'end_user') {
+  // Which dashboard: by what the user can do, most capable first.
+  if (!can(user, 'ticket.view_all')) {
     const tickets = await store.listTickets({ requesterEmail: user.email });
     return res.render('dashboard-enduser', { tickets });
   }
 
-  if (user.role === 'agent') {
+  if (!can(user, 'report.view')) {
     // Open queue, most urgent SLA first.
     const queue = withSla(await store.listTickets({ status: 'Open' })).sort(
       (a, b) => SLA_ORDER[a.sla.overall] - SLA_ORDER[b.sla.overall] || a.sla.firstResponse.remainingHours - b.sla.firstResponse.remainingHours
@@ -26,7 +28,7 @@ router.get('/dashboard', requireLogin, asyncHandler(async (req, res) => {
     return res.render('dashboard-agent', { queue, mine });
   }
 
-  if (hasManagerRights(user)) {
+  {
     const all = withSla(await store.listTickets({}));
     // Every number on the dashboard is { count, href }: the count is the
     // length of exactly the list its link opens (see lib/ticketFilters.js).

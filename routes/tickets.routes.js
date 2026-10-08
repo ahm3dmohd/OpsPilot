@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
-const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
-const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, TICKET_TYPES, TYPE_LABELS, canTransition, hasManagerRights } = require('../lib/constants');
+const { requireLogin, requirePermission, asyncHandler } = require('../middleware/auth');
+const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, TICKET_TYPES, TYPE_LABELS, canTransition } = require('../lib/constants');
+const { can } = require('../lib/permissions');
 const { detectDuplicates, aiThreshold, baselineThreshold } = require('../lib/duplicates');
 const { suggestCategory, suggestAssignee, agentWorkloads } = require('../lib/categorize');
 const { slaFor, timeInStatus } = require('../lib/sla');
@@ -19,7 +20,7 @@ const MAX_COMMENT = 5000;
 const MAX_JUSTIFICATION = 1000;
 const MAX_NOTE = 5000;
 
-const isStaff = (user) => user.role === 'agent' || hasManagerRights(user);
+const isStaff = (user) => can(user, 'ticket.view_all');
 
 // Staff, the requester, and anyone who is (or was) an approver on it.
 async function canView(ticket, user) {
@@ -87,7 +88,7 @@ const SORTS = {
   priority: (a, b) => PRIORITIES.indexOf(b.priority) - PRIORITIES.indexOf(a.priority),
 };
 
-router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.get('/', requirePermission('ticket.view_all'), asyncHandler(async (req, res) => {
   const filters = filtering.parseFilters(req.query);
   const sort = SORTS[req.query.sort] ? req.query.sort : 'newest';
   const [all, agents, departments] = await Promise.all([store.listTickets({}), store.listUsers({ role: 'agent' }), store.listDepartments()]);
@@ -114,7 +115,7 @@ router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) =
 }));
 
 // ---- Create (end users only - managers have no creation UI by design) ----
-router.get('/new', requireRole('end_user'), asyncHandler(async (req, res) => {
+router.get('/new', requirePermission('ticket.create'), asyncHandler(async (req, res) => {
   const type = TICKET_TYPES.includes(req.query.type) ? req.query.type : '';
   await renderNew(res, { form: { type, department: 'IT' } });
 }));
@@ -122,7 +123,7 @@ router.get('/new', requireRole('end_user'), asyncHandler(async (req, res) => {
 // "Suggest category" button: re-renders the form with the AI suggestion
 // pre-selected (still editable) and any knowledge-base articles that might
 // solve the problem without a ticket.
-router.post('/new/suggest', requireRole('end_user'), asyncHandler(async (req, res) => {
+router.post('/new/suggest', requirePermission('ticket.create'), asyncHandler(async (req, res) => {
   const form = readForm(req.body);
   if (!form.type) return renderNew(res, { status: 400, error: 'Choose Incident or Service request first.', form });
   if (!form.title && !form.description) {
@@ -135,7 +136,7 @@ router.post('/new/suggest', requireRole('end_user'), asyncHandler(async (req, re
   await renderNew(res, { form, suggestion, help });
 }));
 
-router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
+router.post('/', requirePermission('ticket.create'), asyncHandler(async (req, res) => {
   const form = readForm(req.body);
   if (!form.type) return renderNew(res, { status: 400, error: 'Choose Incident or Service request first.', form });
   const errors = await validateForm(form);
@@ -214,15 +215,15 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     liveThresholds: { ai: aiThreshold(), baseline: baselineThreshold() },
     // Internal notes are only ever loaded for staff - the requester's page
     // never has them in hand, so no template mistake can leak them.
-    internalNotes: staff ? await store.listInternalNotes(ticket.ticketId) : [],
+    internalNotes: can(user, 'note.manage') ? await store.listInternalNotes(ticket.ticketId) : [],
     // Tickets merged into this one (their IDs are other people's tickets).
     mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
-    cannedResponses: staff ? await store.listCannedResponses() : [],
+    cannedResponses: can(user, 'canned.use') ? await store.listCannedResponses() : [],
     department: await store.getDepartment(ticket.department || 'IT'),
     approval: await approvalView(ticket, user),
-    departments: staff ? await store.listDepartments() : [],
+    departments: can(user, 'ticket.work') ? await store.listDepartments() : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
-    agents: hasManagerRights(user) && !ticket.assigneeEmail ? await agentWorkloads() : [],
+    agents: can(user, 'ticket.assign') && !ticket.assigneeEmail ? await agentWorkloads() : [],
     flash: req.query.msg ? String(req.query.msg) : null,
     mergedFrom: /^T-\d+$/.test(String(req.query.from || '')) ? String(req.query.from) : null,
   });
@@ -243,7 +244,7 @@ async function approvalView(ticket, user) {
 const NOT_IN_QUEUE = ['Pending Approval', 'Rejected'];
 
 // ---- Agent / manager actions ----
-router.post('/:id/claim', requireRole('agent'), asyncHandler(async (req, res) => {
+router.post('/:id/claim', requirePermission('ticket.claim'), asyncHandler(async (req, res) => {
   const user = req.session.user;
   const pending = await store.getTicketById(String(req.params.id));
   if (pending && NOT_IN_QUEUE.includes(pending.status)) return res.redirect(`/tickets/${pending.ticketId}?msg=not_approved`);
@@ -259,7 +260,7 @@ router.post('/:id/claim', requireRole('agent'), asyncHandler(async (req, res) =>
 
 // Managers can hand an unassigned ticket to a specific agent (e.g. the
 // lowest-workload suggestion).
-router.post('/:id/assign', requireRole('manager'), asyncHandler(async (req, res) => {
+router.post('/:id/assign', requirePermission('ticket.assign'), asyncHandler(async (req, res) => {
   const user = req.session.user;
   const agent = await store.findUserByEmail(String(req.body.agentEmail || ''));
   if (!agent || agent.role !== 'agent') return res.status(400).send('Unknown agent');
@@ -275,7 +276,7 @@ router.post('/:id/assign', requireRole('manager'), asyncHandler(async (req, res)
   res.redirect(`/tickets/${ticket.ticketId}`);
 }));
 
-router.post('/:id/status', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/status', requirePermission('ticket.work'), asyncHandler(async (req, res) => {
   const { status } = req.body;
   if (!STATUSES.includes(status)) return res.status(400).send('Invalid status');
   const existing = await store.getTicketById(req.params.id);
@@ -303,7 +304,7 @@ router.post('/:id/status', requireRole('agent', 'manager'), asyncHandler(async (
 }));
 
 // Re-route a ticket to another department (agents + managers).
-router.post('/:id/department', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/department', requirePermission('ticket.work'), asyncHandler(async (req, res) => {
   const existing = await store.getTicketById(String(req.params.id));
   if (!existing) return res.status(404).render('404', { url: req.originalUrl });
   const dept = await store.getDepartment(String(req.body.department || ''));
@@ -318,7 +319,7 @@ router.post('/:id/department', requireRole('agent', 'manager'), asyncHandler(asy
 
 // Re-runs both duplicate methods (e.g. for seed tickets, which have no
 // stored results, or after the threshold changed).
-router.post('/:id/duplicates', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/duplicates', requirePermission('duplicate.decide'), asyncHandler(async (req, res) => {
   const existing = await store.getTicketById(req.params.id);
   if (!existing) return res.status(404).render('404', { url: req.originalUrl });
   await detectDuplicates(existing.ticketId);
@@ -330,7 +331,7 @@ router.post('/:id/duplicates', requireRole('agent', 'manager'), asyncHandler(asy
 // Confirm merges the newer ticket of the pair into the older one.
 const DECISION_FLASH = { not_suggested: 'not_suggested', already_decided: 'already_decided', already_merged: 'already_merged' };
 
-router.post('/:id/duplicates/:otherId/confirm', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/duplicates/:otherId/confirm', requirePermission('duplicate.decide'), asyncHandler(async (req, res) => {
   const user = req.session.user;
   const id = String(req.params.id);
   const result = await decisions.confirm(id, String(req.params.otherId), user);
@@ -340,7 +341,7 @@ router.post('/:id/duplicates/:otherId/confirm', requireRole('agent', 'manager'),
   res.redirect(`/tickets/${result.primary.ticketId}?msg=merged&from=${encodeURIComponent(result.merged.ticketId)}#notes`);
 }));
 
-router.post('/:id/duplicates/:otherId/reject', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/duplicates/:otherId/reject', requirePermission('duplicate.decide'), asyncHandler(async (req, res) => {
   const user = req.session.user;
   const id = String(req.params.id);
   const result = await decisions.reject(id, String(req.params.otherId), user);
@@ -359,7 +360,7 @@ router.post('/:id/comment', requireLogin, asyncHandler(async (req, res) => {
   const user = req.session.user;
   const now = new Date();
   const set = {};
-  if (isStaff(user) && !existing.firstResponseAt) set.firstResponseAt = now;
+  if (can(user, 'ticket.work') && !existing.firstResponseAt) set.firstResponseAt = now;
   const ticket = await store.updateTicket(existing.ticketId, {
     set,
     push: { comments: { authorEmail: user.email, authorName: user.name, authorRole: user.role, body, createdAt: now } },
@@ -373,7 +374,7 @@ router.post('/:id/comment', requireLogin, asyncHandler(async (req, res) => {
 // Never shown to the requester and never notified to anyone: staff read
 // them on the ticket page. The audit log records that a note was added,
 // not what it says.
-router.post('/:id/notes', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id/notes', requirePermission('note.manage'), asyncHandler(async (req, res) => {
   const existing = await store.getTicketById(String(req.params.id));
   if (!existing) return res.status(404).render('404', { url: req.originalUrl });
   const body = String(req.body.body || '').trim().slice(0, MAX_NOTE);

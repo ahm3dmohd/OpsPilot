@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
-const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
+const { requireLogin, requirePermission, asyncHandler } = require('../middleware/auth');
 const { CATEGORIES } = require('../lib/constants');
 const { tokenize, jaccardSimilarity } = require('../lib/similarity');
 const { logAction } = require('../lib/activity');
@@ -32,11 +32,11 @@ router.get('/', requireLogin, asyncHandler(async (req, res) => {
   res.render('kb-list', { articles, q, flash: req.query.msg || null });
 }));
 
-router.get('/new', requireRole('agent', 'manager'), (req, res) => {
+router.get('/new', requirePermission('kb.edit'), (req, res) => {
   res.render('kb-form', { article: null, form: { category: 'General' }, error: null, CATEGORIES });
 });
 
-router.post('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/', requirePermission('kb.edit'), asyncHandler(async (req, res) => {
   const form = readForm(req.body);
   if (!form.title || !form.body) {
     return res.status(400).render('kb-form', { article: null, form, error: 'Title and body are required.', CATEGORIES });
@@ -73,13 +73,13 @@ router.post('/:id/vote', requireLogin, asyncHandler(async (req, res) => {
   res.redirect(`/kb/${id}?msg=thanks`);
 }));
 
-router.get('/:id/edit', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.get('/:id/edit', requirePermission('kb.edit'), asyncHandler(async (req, res) => {
   const article = await store.getArticle(req.params.id);
   if (!article) return res.status(404).render('404', { url: req.originalUrl });
   res.render('kb-form', { article, form: article, error: null, CATEGORIES });
 }));
 
-router.post('/:id', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+router.post('/:id', requirePermission('kb.edit'), asyncHandler(async (req, res) => {
   const existing = await store.getArticle(req.params.id);
   if (!existing) return res.status(404).render('404', { url: req.originalUrl });
   const form = readForm(req.body);
@@ -91,7 +91,7 @@ router.post('/:id', requireRole('agent', 'manager'), asyncHandler(async (req, re
   res.redirect(`/kb/${existing.articleId}`);
 }));
 
-router.post('/:id/delete', requireRole('manager'), asyncHandler(async (req, res) => {
+router.post('/:id/delete', requirePermission('kb.delete'), asyncHandler(async (req, res) => {
   const deleted = await store.deleteArticle(req.params.id);
   if (!deleted) return res.status(404).render('404', { url: req.originalUrl });
   await logAction(req.session.user, 'kb.delete', { articleId: req.params.id });

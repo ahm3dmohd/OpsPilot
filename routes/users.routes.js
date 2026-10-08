@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
-const { requireRole, asyncHandler } = require('../middleware/auth');
+const { requirePermission, asyncHandler } = require('../middleware/auth');
 const { ROLES } = require('../lib/constants');
 const { changeRole } = require('../lib/roles');
 const org = require('../lib/org');
@@ -12,14 +12,14 @@ const decisions = require('../lib/duplicateDecisions');
 const { logAction } = require('../lib/activity');
 
 // ---- User & role management (admins only, mounted at /admin) ----
-router.get('/users', requireRole('admin'), asyncHandler(async (req, res) => {
+router.get('/users', requirePermission('user.manage'), asyncHandler(async (req, res) => {
   const msg = req.query.msg ? String(req.query.msg) : null;
   const who = req.query.who ? String(req.query.who) : null;
   const [users, departments] = await Promise.all([store.listUsers(), store.listDepartments()]);
   res.render('admin-users', { users, departments, ROLES, flash: msg, who });
 }));
 
-router.post('/users/role', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/users/role', requirePermission('user.manage'), asyncHandler(async (req, res) => {
   const actor = req.session.user;
   const email = String(req.body.email || '');
   const result = await changeRole(actor, email, req.body.role);
@@ -32,8 +32,14 @@ router.post('/users/role', requireRole('admin'), asyncHandler(async (req, res) =
   res.redirect(`/admin/users?msg=role_changed&who=${who}`);
 }));
 
+// Read-only matrix of lib/permissions.js.
+router.get('/permissions', requirePermission('user.manage'), (req, res) => {
+  const { PERMISSIONS, DESCRIPTIONS, ALL } = require('../lib/permissions');
+  res.render('admin-permissions', { ROLES, PERMISSIONS, DESCRIPTIONS, ALL });
+});
+
 // Department + line manager for one user.
-router.post('/users/org', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/users/org', requirePermission('user.manage'), asyncHandler(async (req, res) => {
   const email = String(req.body.email || '');
   const result = await org.setUserOrg(email, { department: req.body.department, managerEmail: req.body.managerEmail });
   if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
@@ -48,7 +54,7 @@ router.post('/users/org', requireRole('admin'), asyncHandler(async (req, res) =>
 }));
 
 // ---- Departments (admins only) ----
-router.get('/departments', requireRole('admin'), asyncHandler(async (req, res) => {
+router.get('/departments', requirePermission('department.manage'), asyncHandler(async (req, res) => {
   const [departments, users, tickets] = await Promise.all([store.listDepartments(), store.listUsers(), store.listTickets({})]);
   const counts = {};
   tickets.forEach((t) => {
@@ -66,14 +72,14 @@ router.get('/departments', requireRole('admin'), asyncHandler(async (req, res) =
   });
 }));
 
-router.post('/departments', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/departments', requirePermission('department.manage'), asyncHandler(async (req, res) => {
   const result = await org.addDepartment({ code: req.body.code, name: req.body.name });
   if (result.reason) return res.redirect(`/admin/departments?msg=${result.reason}`);
   await logAction(req.session.user, 'department.create', { code: result.dept.code, name: result.dept.name });
   res.redirect('/admin/departments?msg=created');
 }));
 
-router.post('/departments/:code/head', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/departments/:code/head', requirePermission('department.manage'), asyncHandler(async (req, res) => {
   const result = await org.setHead(String(req.params.code), req.body.headEmail);
   if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
   if (result.reason) return res.redirect(`/admin/departments?msg=${result.reason}`);
@@ -85,7 +91,7 @@ router.post('/departments/:code/head', requireRole('admin'), asyncHandler(async 
 }));
 
 // ---- Open approval steps: reassign when an approver changed or left ----
-router.get('/approvals', requireRole('admin'), asyncHandler(async (req, res) => {
+router.get('/approvals', requirePermission('approval.reassign'), asyncHandler(async (req, res) => {
   const [steps, users] = await Promise.all([approvals.openSteps(), store.listUsers()]);
   res.render('admin-approvals', {
     steps, users, KIND_LABELS: approvals.KIND_LABELS,
@@ -93,7 +99,7 @@ router.get('/approvals', requireRole('admin'), asyncHandler(async (req, res) => 
   });
 }));
 
-router.post('/approvals/:id/reassign', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/approvals/:id/reassign', requirePermission('approval.reassign'), asyncHandler(async (req, res) => {
   const result = await approvals.reassign(String(req.params.id), req.session.user, req.body.approverEmail);
   if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
   if (result.reason) return res.redirect(`/admin/approvals?msg=${result.reason}`);
@@ -111,7 +117,7 @@ const THRESHOLDS = {
   baselineThreshold: { min: 0.01, max: 0.9, tuned: () => duplicates.tunedBaselineThreshold(), live: () => duplicates.baselineThreshold() },
 };
 
-router.get('/settings', requireRole('admin'), asyncHandler(async (req, res) => {
+router.get('/settings', requirePermission('settings.edit'), asyncHandler(async (req, res) => {
   const [stats, users] = await Promise.all([decisions.stats(), store.listUsers()]);
   const nameOf = (email) => (users.find((u) => u.email === email) || {}).name || email;
   const view = Object.fromEntries(Object.entries(THRESHOLDS).map(([key, t]) => {
@@ -127,7 +133,7 @@ router.get('/settings', requireRole('admin'), asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/settings/thresholds', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/settings/thresholds', requirePermission('settings.edit'), asyncHandler(async (req, res) => {
   const key = String(req.body.key || '');
   const t = THRESHOLDS[key];
   if (!t) return res.status(400).send('Unknown setting');
@@ -145,7 +151,7 @@ router.post('/settings/thresholds', requireRole('admin'), asyncHandler(async (re
 
 // Re-runs both methods on every active ticket with the live thresholds,
 // so existing suggestions match a changed setting.
-router.post('/settings/recheck', requireRole('admin'), asyncHandler(async (req, res) => {
+router.post('/settings/recheck', requirePermission('settings.edit'), asyncHandler(async (req, res) => {
   const active = (await store.listTickets({})).filter((t) => ['Pending Approval', 'Open', 'In Progress'].includes(t.status) && !t.mergedInto);
   for (const t of active) await duplicates.detectDuplicates(t.ticketId);
   await logAction(req.session.user, 'settings.recheck', { tickets: active.length });

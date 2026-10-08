@@ -20,9 +20,10 @@
       <% var path = currentPath || ''; var on = function(p) { return path === p || path.indexOf(p + '/') === 0 ? 'aria-current="page"' : ''; }; %>
       <nav class="flex flex-1 flex-col gap-0.5 px-3" aria-label="Main">
         <a href="/dashboard" class="nav-link" <%- on('/dashboard') %>><%- icon('layout-dashboard') %> Dashboard</a>
-        <% if (currentUser.role !== 'end_user') { %>
+        <% if (can('ticket.view_all')) { %>
           <a href="/tickets" class="nav-link" <%- path === '/tickets' ? 'aria-current="page"' : '' %>><%- icon('inbox') %> Tickets</a>
-        <% } else { %>
+        <% } %>
+        <% if (can('ticket.create')) { %>
           <a href="/tickets/new" class="nav-link" <%- on('/tickets/new') %>><%- icon('plus') %> New ticket</a>
           <a href="/help" class="nav-link" <%- on('/help') %>><%- icon('life-buoy') %> Get help</a>
         <% } %>
@@ -31,26 +32,31 @@
           <% if (approvalCount) { %><span class="ml-auto rounded-full bg-caution px-1.5 text-xs font-semibold text-white approval-count" aria-label="<%= approvalCount %> waiting"><%= approvalCount %></span><% } %>
         </a>
         <a href="/kb" class="nav-link" <%- on('/kb') %>><%- icon('book-open') %> Knowledge base</a>
-        <% if (currentUser.role !== 'end_user') { %>
+        <% if (can('canned.use')) { %>
           <a href="/canned" class="nav-link" <%- on('/canned') %>><%- icon('message-square-text') %> Canned responses</a>
         <% } %>
         <a href="/notifications" class="nav-link" <%- on('/notifications') %>>
           <%- icon('bell') %> Notifications
           <% if (unreadCount) { %><span class="ml-auto rounded-full bg-danger px-1.5 text-xs font-semibold text-white notif-count"><%= unreadCount %></span><% } %>
         </a>
-        <% if (managerRights) { %>
+        <% if (can('report.view') || can('audit.view') || can('report.export')) { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Reports</p>
-          <a href="/evaluation" class="nav-link" <%- on('/evaluation') %>><%- icon('flask-conical') %> AI evaluation</a>
-          <a href="/admin/duplicate-stats" class="nav-link" <%- on('/admin/duplicate-stats') %>><%- icon('git-compare') %> Duplicate decisions</a>
-          <a href="/audit" class="nav-link" <%- on('/audit') %>><%- icon('shield-check') %> Audit log</a>
-          <a href="/reports/tickets.csv" class="nav-link"><%- icon('download') %> Export CSV</a>
+          <% if (can('report.view')) { %>
+            <a href="/evaluation" class="nav-link" <%- on('/evaluation') %>><%- icon('flask-conical') %> AI evaluation</a>
+            <a href="/admin/duplicate-stats" class="nav-link" <%- on('/admin/duplicate-stats') %>><%- icon('git-compare') %> Duplicate decisions</a>
+          <% } %>
+          <% if (can('audit.view')) { %><a href="/audit" class="nav-link" <%- on('/audit') %>><%- icon('shield-check') %> Audit log</a><% } %>
+          <% if (can('report.export')) { %><a href="/reports/tickets.csv" class="nav-link"><%- icon('download') %> Export CSV</a><% } %>
         <% } %>
-        <% if (currentUser.role === 'admin') { %>
+        <% if (can('user.manage') || can('department.manage') || can('approval.reassign') || can('settings.edit')) { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Administration</p>
-          <a href="/admin/users" class="nav-link" <%- on('/admin/users') %>><%- icon('users') %> Users &amp; roles</a>
-          <a href="/admin/departments" class="nav-link" <%- on('/admin/departments') %>><%- icon('building-2') %> Departments</a>
-          <a href="/admin/approvals" class="nav-link" <%- on('/admin/approvals') %>><%- icon('route') %> Open approvals</a>
-          <a href="/admin/settings" class="nav-link" <%- on('/admin/settings') %>><%- icon('sliders-horizontal') %> Settings</a>
+          <% if (can('user.manage')) { %>
+            <a href="/admin/users" class="nav-link" <%- on('/admin/users') %>><%- icon('users') %> Users &amp; roles</a>
+            <a href="/admin/permissions" class="nav-link" <%- on('/admin/permissions') %>><%- icon('key-round') %> Permissions</a>
+          <% } %>
+          <% if (can('department.manage')) { %><a href="/admin/departments" class="nav-link" <%- on('/admin/departments') %>><%- icon('building-2') %> Departments</a><% } %>
+          <% if (can('approval.reassign')) { %><a href="/admin/approvals" class="nav-link" <%- on('/admin/approvals') %>><%- icon('route') %> Open approvals</a><% } %>
+          <% if (can('settings.edit')) { %><a href="/admin/settings" class="nav-link" <%- on('/admin/settings') %>><%- icon('sliders-horizontal') %> Settings</a><% } %>
         <% } %>
       </nav>
 
@@ -59,7 +65,7 @@
           <span class="avatar"><%= initials(currentUser.name) %></span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-ink"><%= currentUser.name %></p>
-            <p class="text-xs text-muted"><%= { end_user: 'End user', agent: 'Agent', manager: 'Manager' }[currentUser.role] %></p>
+            <p class="text-xs text-muted"><%= roleLabel(currentUser.role) %></p>
           </div>
         </div>
         <form action="/logout" method="POST">
@@ -73,7 +79,7 @@
     <div class="flex min-w-0 flex-col">
       <header class="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur sm:px-8">
         <button type="button" id="menuButton" class="btn-ghost -ml-2 px-2 lg:hidden" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><%- icon('menu', 'size-5') %></button>
-        <% if (currentUser.role !== 'end_user') { %>
+        <% if (can('ticket.view_all')) { %>
           <form action="/tickets" method="GET" role="search" class="relative flex-1 max-w-md">
             <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted"><%- icon('search') %></span>
             <input id="globalSearch" type="search" name="q" placeholder="Search tickets" aria-label="Search tickets" class="input py-1.5 pl-9 pr-9" />

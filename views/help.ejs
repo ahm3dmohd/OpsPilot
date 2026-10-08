@@ -30,7 +30,7 @@
       <% }) %>
     </div>
     <div class="mt-6 flex items-center gap-4">
-      <% if (currentUser.role === 'end_user') { %><a href="/tickets/new" class="btn-primary"><%- icon('plus') %> Report a problem</a><% } %>
+      <% if (can('ticket.create')) { %><a href="/tickets/new" class="btn-primary"><%- icon('plus') %> Report a problem</a><% } %>
       <span class="text-xs text-muted">Matched by <%= result.method === 'ai' ? 'AI (embeddings)' : 'keywords' %>.</span>
     </div>
   <% } %>

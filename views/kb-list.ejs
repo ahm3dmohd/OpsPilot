@@ -1,5 +1,5 @@
 <%- include('partials/layout-top', { title: 'Knowledge base' }) %>
-<% var staff = currentUser.role !== 'end_user'; %>
+<% var staff = can('kb.edit'); %>
 
 <div class="flex flex-wrap items-end justify-between gap-4">
   <div>

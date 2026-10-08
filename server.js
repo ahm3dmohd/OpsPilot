@@ -13,7 +13,7 @@ const embeddings = require('./lib/embeddings');
 const { detectDuplicates, ensureEmbeddings } = require('./lib/duplicates');
 const { DEMO_USERS, DEMO_PASSWORD } = require('./lib/seedData');
 const viewHelpers = require('./lib/viewHelpers');
-const { hasManagerRights } = require('./lib/constants');
+const { can } = require('./lib/permissions');
 const settings = require('./lib/settings');
 
 const app = express();
@@ -75,7 +75,9 @@ app.use(async (req, res, next) => {
     }
   }
   res.locals.currentUser = req.session.user || null;
-  res.locals.managerRights = hasManagerRights(req.session.user);
+  // Views ask can('report.export') etc. for the logged-in user.
+  const viewer = req.session.user;
+  res.locals.can = (permission) => can(viewer, permission);
   res.locals.currentPath = req.path;
   res.locals.unreadCount = 0;
   res.locals.approvalCount = 0;

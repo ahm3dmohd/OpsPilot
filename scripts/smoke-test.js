@@ -99,6 +99,21 @@ async function unitChecks() {
   const r = await changeRole({ email: 'manager@opspilot.test' }, 'admin@opspilot.test', 'agent');
   check('the last admin cannot be demoted', r.reason === 'last_admin');
   check('...and is still an admin', (await store.findUserByEmail('admin@opspilot.test')).role === 'admin');
+
+  const { PERMISSIONS, can } = require('../lib/permissions');
+  const { requirePermission } = require('../middleware/auth');
+  const { ROLES } = require('../lib/constants');
+  check('every role has a permission list', ROLES.every((role) => Array.isArray(PERMISSIONS[role])));
+  let threw = false;
+  try { can({ role: 'agent' }, 'tickets.claim'); } catch (e) { threw = true; }
+  check('a misspelled permission throws instead of silently denying', threw);
+  threw = false;
+  try { requirePermission('reprot.export'); } catch (e) { threw = true; }
+  check('...including when a route is defined (server would not start)', threw);
+  check('admin has every manager permission, spelled out', PERMISSIONS.manager.every((p) => PERMISSIONS.admin.includes(p)));
+  check('end users can only create tickets', PERMISSIONS.end_user.join() === 'ticket.create');
+  check('only agents claim; only managers/admins assign', can({ role: 'agent' }, 'ticket.claim') && !can({ role: 'manager' }, 'ticket.claim') && !can({ role: 'agent' }, 'ticket.assign') && can({ role: 'admin' }, 'ticket.assign'));
+  check('nobody logged out can do anything', !can(null, 'ticket.create'));
 }
 
 async function main() {
@@ -569,6 +584,15 @@ async function main() {
     r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'agent' });
     r = await agent2.get('/tickets');
     check('agent2 is an agent again', r.status === 200);
+
+    console.log('\nPermissions page');
+    r = await admin.get('/admin/permissions');
+    check('admin sees the permission matrix from lib/permissions.js', r.status === 200 && r.text.includes('data-permission="report.export"') && r.text.includes('data-permission="settings.edit"'));
+    check('matrix: managers can export, agents cannot', /data-permission="report.export"[\s\S]*?data-role="agent" data-allowed="false"[\s\S]*?data-role="manager" data-allowed="true"/.test(r.text));
+    r = await manager.get('/admin/permissions');
+    check('managers cannot open the permissions page (403)', r.status === 403);
+    r = await admin.get('/dashboard');
+    check("the sidebar shows the admin's role label", /<p class="text-xs text-muted">Admin<\/p>/.test(r.text));
 
     console.log('\nDepartments + org structure');
     r = await admin.get('/admin/departments');

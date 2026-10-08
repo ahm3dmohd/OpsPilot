@@ -1,0 +1,34 @@
+<%- include('partials/layout-top', { title: 'Permissions' }) %>
+
+<a href="/admin/users" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> Users &amp; roles</a>
+
+<h1 class="mt-4">Permissions</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">What each role can do. This page is generated from <code>lib/permissions.js</code>, the one place the app checks, so it can't drift from what the server enforces. Approving a service request isn't listed: it depends on being the line manager or department head for that request, whatever the role.</p>
+
+<section class="panel mt-6 overflow-x-auto">
+  <table class="data-table" data-permission-matrix>
+    <thead>
+      <tr>
+        <th>Permission</th>
+        <% ROLES.forEach(function(r) { %><th class="text-center"><%= roleLabel(r) %></th><% }) %>
+      </tr>
+    </thead>
+    <tbody>
+      <% ALL.forEach(function(p) { %>
+        <tr data-permission="<%= p %>">
+          <td>
+            <code class="text-[13px] text-ink"><%= p %></code>
+            <span class="block text-xs text-muted"><%= DESCRIPTIONS[p] %></span>
+          </td>
+          <% ROLES.forEach(function(r) { var yes = PERMISSIONS[r].indexOf(p) !== -1; %>
+            <td class="text-center" data-role="<%= r %>" data-allowed="<%= yes %>">
+              <% if (yes) { %><span class="inline-flex items-center gap-1 text-ok"><%- icon('check', 'size-4') %><span class="sr-only">Allowed</span></span><% } else { %><span class="text-muted" aria-label="Not allowed">–</span><% } %>
+            </td>
+          <% }) %>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('partials/layout-bottom') %>

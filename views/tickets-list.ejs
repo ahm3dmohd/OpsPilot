@@ -5,7 +5,7 @@
     <h1 data-count="<%= tickets.length %>"><%= tickets.length %> ticket<%= tickets.length === 1 ? '' : 's' %></h1>
     <p class="mt-1 text-sm text-muted"><%= chips.length ? 'Matching your filters, out of ' + total + ' in total.' : 'All tickets.' %></p>
   </div>
-  <% if (managerRights) { %>
+  <% if (can('report.export')) { %>
     <a href="/reports/tickets.csv<%= query %>" class="btn-secondary"><%- icon('download') %> <%= chips.length ? 'Export these as CSV' : 'Export CSV' %></a>
   <% } %>
 </div>
