@@ -1,0 +1,55 @@
+# OpsPilot - notes for Claude Code
+
+Read README.md for the full picture. This file holds the working rules and
+the decisions behind the code, so a new session doesn't undo them.
+
+## Working rules (from the project owner)
+
+- **Work directly on `main`.** Don't create branches or pull requests unless asked.
+- **`git pull` before starting any task**; the owner also edits on their laptop.
+- **Run `npm test` before every push** (100+ checks, must all pass). Don't push red.
+- After changing `src/styles/app.css` or any class names in `views/`, run
+  `npm run build:css` and commit the rebuilt `public/css/app.css`.
+- Never commit `.env` or `data/.embedding-cache.json` (both git-ignored).
+- Be honest and direct with the owner; correct them when they're wrong.
+
+## Commands
+
+```
+npm run dev          start with auto-reload (http://localhost:3000)
+npm test             end-to-end smoke test (starts its own server, mock mode)
+npm run evaluate     AI-vs-baseline evaluation -> docs/evaluation-results.md
+npm run build:css    rebuild Tailwind CSS (watch:css while editing)
+npm run seed         WIPES and re-seeds MongoDB (needs MONGODB_URI)
+TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode (wipes that DB)
+```
+
+## Architecture decisions
+
+- `lib/store.js` is the ONLY place that branches on mock vs. MongoDB mode.
+  The mode is decided once at startup and never changes. Mock reads return
+  copies (like Mongo does).
+- Embeddings: Gemini (`gemini-embedding-001`, 768 dims) when LLM_API_KEY is a
+  Gemini key, OpenAI if it starts with `sk-`. The AI side never throws: no key
+  gives "skipped", and an API failure gives "error"; ticket creation never breaks.
+- Duplicate thresholds: AI 0.88 (Gemini), baseline Jaccard 0.10. Both are each
+  method's best-F1 value on the seed set, so they were tuned the same way. Don't
+  change them without re-running `npm run evaluate`. Quote HELD-OUT numbers
+  (AI F1 0.95 vs. baseline 0.67), never the tuned seed-set ones.
+- Dashboard numbers are computed with the same filters as the lists they link to
+  (`lib/ticketFilters.js`). Keep it that way; the test checks every link.
+- SLA "at risk" is a rule (75% of target used), not a trained model. Don't call
+  it prediction.
+- Help assistant is retrieval only (returns written KB articles, no generated
+  text). End users never see other users' tickets or duplicate results.
+- UI: Tailwind v4, compiled (not CDN). Semantic colour tokens + dark mode in
+  `src/styles/app.css`. Classes built from data (`pill-<%= x %>`) must be listed
+  in its `@source inline(...)` lines or they won't be generated.
+
+## Still open
+
+- Real MongoDB mode is only verified by review + simulation; run the
+  TEST_MONGODB_URI test above on a machine with MongoDB.
+- Known gaps: no CSRF tokens, in-memory session store, no password reset.
+- Suggested next features: internal (staff-only) notes; confirm/reject duplicate
+  + merge (gives real-usage accuracy data for the thesis).
