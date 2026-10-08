@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { STATUSES, PRIORITIES } = require('../lib/constants');
+const { STATUSES, PRIORITIES, TICKET_TYPES } = require('../lib/constants');
 
 const commentSchema = new mongoose.Schema(
   {
@@ -26,6 +26,11 @@ const ticketSchema = new mongoose.Schema({
   ticketId: { type: String, required: true, unique: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
+  type: { type: String, enum: TICKET_TYPES, default: 'incident' },
+  // Service requests only: why it's needed (for the approvers) and an
+  // optional date it's needed by.
+  justification: { type: String, default: null },
+  neededBy: { type: Date, default: null },
   category: { type: String, default: 'General' },
   department: { type: String, default: 'IT' }, // department code the ticket is routed to
   priority: { type: String, enum: PRIORITIES, default: 'Medium' },

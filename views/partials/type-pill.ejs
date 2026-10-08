@@ -1,0 +1,3 @@
+<%# Ticket type badge: icon + text (never colour alone). Expects: type. %>
+<% var tp = type || 'incident'; %>
+<span class="pill-type-<%= tp %>" data-type-pill="<%= tp %>"><%- icon(tp === 'incident' ? 'triangle-alert' : 'package', 'size-3') %> <%= typeLabel(tp) %></span>

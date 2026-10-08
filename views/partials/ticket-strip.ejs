@@ -18,6 +18,7 @@
     </span>
   </span>
   <span class="col-start-2 flex items-center gap-1.5 sm:col-start-auto">
+    <%- include('type-pill', { type: t.type }) %>
     <span class="pill-<%= slug(t.priority) %>"><%= t.priority %></span>
     <span class="pill-<%= slug(t.status) %> pill-status-<%= slug(t.status) %>"><%= t.status %></span>
   </span>

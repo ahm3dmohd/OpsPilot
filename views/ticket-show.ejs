@@ -33,6 +33,7 @@
   <h1 class="min-w-0 flex-1 text-[26px] leading-tight"><%= ticket.title %></h1>
 </div>
 <div class="mt-3 flex flex-wrap items-center gap-2">
+  <%- include('partials/type-pill', { type: ticket.type }) %>
   <span class="pill-<%= slug(ticket.priority) %>"><%= ticket.priority %></span>
   <span class="pill-<%= slug(ticket.status) %> pill-status-<%= slug(ticket.status) %>"><%= ticket.status %></span>
   <%- include('partials/sla-pill', { sla: sla }) %>
@@ -45,6 +46,12 @@
     <section class="panel panel-body">
       <h2 class="sr-only">Description</h2>
       <p class="prose-text"><%= ticket.description %></p>
+      <% if (ticket.type === 'service_request' && (ticket.justification || ticket.neededBy)) { %>
+        <dl class="mt-4 space-y-2 border-t border-line pt-4 text-sm">
+          <% if (ticket.justification) { %><div><dt class="text-muted">Why it's needed</dt><dd class="prose-text" data-justification><%= ticket.justification %></dd></div><% } %>
+          <% if (ticket.neededBy) { %><div><dt class="text-muted">Needed by</dt><dd class="font-medium"><%= fullDate(ticket.neededBy).split(',')[0] %></dd></div><% } %>
+        </dl>
+      <% } %>
     </section>
 
     <% if (showDuplicates) { %>
@@ -241,6 +248,7 @@
 
     <section class="panel" aria-label="Details">
       <dl class="divide-y divide-line text-sm">
+        <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Type</dt><dd class="font-medium" data-type="<%= ticket.type || 'incident' %>"><%= typeLabel(ticket.type) %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Status</dt><dd class="font-medium"><%= ticket.status %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Priority</dt><dd class="font-medium"><%= ticket.priority %></dd></div>
         <div class="flex justify-between gap-4 px-5 py-2.5"><dt class="text-muted">Department</dt><dd class="font-medium" data-department="<%= ticket.department || 'IT' %>"><%= department ? department.name : (ticket.department || 'IT') %></dd></div>

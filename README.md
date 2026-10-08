@@ -285,6 +285,15 @@ as the seed tickets.
   a `user.role` entry in the audit log (who, whom, old and new role, when).
   For a database seeded before admins existed, `npm run make-admin --
   <email>` promotes an existing user.
+- **Ticket type: Incident vs Service request**: `/tickets/new` first asks
+  which one ("something is broken" / "I need something new"), then shows
+  a form for that type. Incidents ask what's happening and offer KB quick
+  fixes; service requests ask what's needed, a required business
+  justification and an optional needed-by date. Both pick the target
+  department. Validation messages appear next to each field. The type is
+  a badge (icon + text) on every ticket list and the ticket page, a filter
+  on `/tickets` and a CSV column. Tickets from before types existed are
+  migrated to Incident at startup.
 - **Departments + org structure**: a `Department` collection (code, name,
   head) seeded with IT, HR, Finance, Facilities, Operations, Procurement,
   Legal, Marketing and Customer Service. Each user has a department and a

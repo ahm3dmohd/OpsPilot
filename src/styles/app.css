@@ -18,6 +18,7 @@
 @source inline("pill-{open,in-progress,resolved,closed,low,medium,high,urgent}");
 @source inline("pill-sla-{breached,at_risk,ok,met}");
 @source inline("strip-{low,medium,high,urgent,closed}");
+@source inline("pill-type-{incident,service_request}");
 
 /* Dark mode follows a .dark class on <html> (set by the theme toggle). */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -133,9 +134,16 @@
 /* Forms */
 @utility field { @apply flex flex-col gap-1.5 text-sm font-medium text-ink-soft; }
 @utility input {
+  &[aria-invalid="true"] { @apply border-danger; }
   @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-[15px] font-normal text-ink placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/25 focus:outline-none;
 }
 @utility hint { @apply text-[13px] font-normal text-muted; }
+/* Server-side validation message under a field. */
+@utility field-error { @apply flex items-center gap-1 text-[13px] font-medium text-danger; }
+/* Big choice card (new ticket: Incident or Service request). */
+@utility type-card {
+  @apply block rounded-lg border-2 border-line bg-surface p-5 no-underline transition-colors hover:border-brand hover:no-underline focus-visible:border-brand;
+}
 
 /* Pills: status / priority / SLA */
 @utility pill { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap; }
@@ -152,6 +160,9 @@
 @utility pill-sla-ok { @apply pill bg-sunken text-ink-soft; }
 @utility pill-sla-met { @apply pill bg-ok-soft text-ok; }
 @utility pill-role { @apply pill bg-brand-soft text-brand-ink; }
+/* Ticket type: icon + text, never colour alone. */
+@utility pill-type-incident { @apply pill border border-danger/30 bg-surface text-danger; }
+@utility pill-type-service_request { @apply pill border border-brand/30 bg-surface text-brand-ink; }
 @utility dept-tag { @apply rounded border border-line px-1.5 font-mono text-[12px] text-ink-soft; }
 
 /* Ticket and article IDs read like callsigns. */

@@ -1,69 +1,125 @@
 <%- include('partials/layout-top', { title: 'New ticket' }) %>
+<% var sr = form.type === 'service_request';
+   var err = function(name) { return errors && errors[name]; };
+   var fieldError = function(name) { return err(name) ? '<span class="field-error" id="err-' + name + '">' + err(name) + '</span>' : ''; };
+   var invalid = function(name) { return err(name) ? 'aria-invalid="true" aria-describedby="err-' + name + '"' : ''; }; %>
 
-<div class="max-w-2xl">
-  <h1>Report a problem</h1>
-  <p class="mt-1 text-ink-soft">Describe what's wrong. IT will see it straight away.</p>
+<% if (!form.type) { %>
+  <%# ---- Step 1: what kind of ticket? ---- %>
+  <div class="max-w-3xl">
+    <h1>What do you need?</h1>
+    <p class="mt-1 text-ink-soft">Pick the one that fits. It decides the questions we ask and who looks at it first.</p>
+    <% if (error) { %><p class="notice-error mt-6" role="alert"><%= error %></p><% } %>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+      <a href="/tickets/new?type=incident" class="type-card" data-choose="incident">
+        <span class="flex items-center gap-2 text-lg font-semibold text-ink"><%- icon('triangle-alert', 'size-5 text-danger') %> Something is broken</span>
+        <span class="mt-1 block font-medium text-ink-soft">Incident</span>
+        <span class="mt-2 block text-sm text-muted">Something that used to work doesn't: no network, a crashing app, a printer that won't print. Goes straight to the department's queue.</span>
+      </a>
+      <a href="/tickets/new?type=service_request" class="type-card" data-choose="service_request">
+        <span class="flex items-center gap-2 text-lg font-semibold text-ink"><%- icon('package', 'size-5 text-brand') %> I need something new</span>
+        <span class="mt-1 block font-medium text-ink-soft">Service request</span>
+        <span class="mt-2 block text-sm text-muted">Access to a system, new equipment, a new app or report. Your line manager and department head approve it before the work starts.</span>
+      </a>
+    </div>
+  </div>
+<% } else { %>
+  <%# ---- Step 2: the form for that type ---- %>
+  <div class="max-w-2xl">
+    <a href="/tickets/new" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> Change type</a>
+    <div class="mt-3 flex flex-wrap items-center gap-3">
+      <h1><%= sr ? 'Request something' : 'Report a problem' %></h1>
+      <%- include('partials/type-pill', { type: form.type }) %>
+    </div>
+    <p class="mt-1 text-ink-soft"><%= sr ? 'Tell us what you need and why. It goes to your approvers first, then to the department that does the work.' : "Describe what's wrong. The department you choose will see it straight away." %></p>
 
-  <% if (error) { %><p class="notice-error mt-6" role="alert"><%= error %></p><% } %>
+    <% if (error) { %><p class="notice-error mt-6" role="alert"><%= error %></p><% } %>
 
-  <% if (help && (help.articles.length || help.ownTickets.length)) { %>
-    <section class="panel mt-6 border-info/40 overflow-hidden" aria-labelledby="mightHelp">
-      <h2 id="mightHelp" class="flex items-center gap-2 border-b border-line bg-info-soft px-5 py-3 text-base text-info"><%- icon('life-buoy', 'size-[18px]') %> This might fix it without a ticket</h2>
-      <div class="divide-y divide-line">
-        <% help.ownTickets.forEach(function(t) { %>
-          <p class="px-5 py-3 text-sm">You already have an open ticket that looks related:
-            <a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand"><%= t.ticketId %></span> <%= t.title %></a> (<%= t.status %>). You can add a comment there instead.</p>
-        <% }) %>
-        <% help.articles.forEach(function(a) { %>
-          <div class="px-5 py-3">
-            <a href="/kb/<%= a.articleId %>" target="_blank" class="font-medium"><%= a.title %></a>
-            <p class="mt-1 text-sm text-ink-soft"><%= a.body %></p>
-          </div>
-        <% }) %>
-      </div>
-    </section>
-  <% } %>
+    <% if (help && (help.articles.length || help.ownTickets.length)) { %>
+      <section class="panel mt-6 border-info/40 overflow-hidden" aria-labelledby="mightHelp">
+        <h2 id="mightHelp" class="flex items-center gap-2 border-b border-line bg-info-soft px-5 py-3 text-base text-info"><%- icon('life-buoy', 'size-[18px]') %> This might fix it without a ticket</h2>
+        <div class="divide-y divide-line">
+          <% help.ownTickets.forEach(function(t) { %>
+            <p class="px-5 py-3 text-sm">You already have an open ticket that looks related:
+              <a href="/tickets/<%= t.ticketId %>"><span class="callsign text-brand"><%= t.ticketId %></span> <%= t.title %></a> (<%= t.status %>). You can add a comment there instead.</p>
+          <% }) %>
+          <% help.articles.forEach(function(a) { %>
+            <div class="px-5 py-3">
+              <a href="/kb/<%= a.articleId %>" target="_blank" class="font-medium"><%= a.title %></a>
+              <p class="mt-1 text-sm text-ink-soft"><%= a.body %></p>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
 
-  <form action="/tickets" method="POST" class="panel panel-body mt-6 space-y-5">
-    <label class="field">Title
-      <input class="input" type="text" name="title" required maxlength="150" autofocus placeholder="For example: VPN disconnects every few minutes" value="<%= form.title || '' %>" />
-    </label>
-    <label class="field">What's happening?
-      <textarea class="input" name="description" rows="5" required maxlength="5000" placeholder="When did it start? What have you already tried?"><%= form.description || '' %></textarea>
-    </label>
-
-    <div class="rounded-md border border-dashed border-line bg-sunken p-4">
-      <button type="submit" formaction="/tickets/new/suggest" formnovalidate class="btn-secondary btn-sm"><%- icon('sparkles', 'size-3.5') %> Suggest a category and check for quick fixes</button>
-      <% if (suggestion) { %>
-        <p class="mt-2 text-sm text-ink-soft">
-          Suggested: <strong><%= suggestion.category %></strong>
-          (<%= suggestion.method === 'ai' ? 'AI' : 'keyword match' %>; <%= Math.round(suggestion.confidence * 100) %>% weighted vote among the <%= suggestion.neighbours.length %> most similar tickets). Change it below if it's wrong.
-        </p>
-        <input type="hidden" name="suggestedCategory" value="<%= suggestion.category %>" />
-        <input type="hidden" name="suggestionMethod" value="<%= suggestion.method %>" />
-      <% } else { %>
-        <p class="hint mt-2">Optional. Uses your title and description.</p>
+    <form action="/tickets" method="POST" class="panel panel-body mt-6 space-y-5">
+      <input type="hidden" name="type" value="<%= form.type %>" />
+      <label class="field">Title
+        <input class="input" type="text" name="title" required maxlength="150" autofocus <%- invalid('title') %>
+          placeholder="<%= sr ? 'For example: Access to the Finance reporting dashboard' : 'For example: VPN disconnects every few minutes' %>" value="<%= form.title || '' %>" />
+        <%- fieldError('title') %>
+      </label>
+      <label class="field"><%= sr ? 'What do you need?' : "What's happening?" %>
+        <textarea class="input" name="description" rows="5" required maxlength="5000" <%- invalid('description') %>
+          placeholder="<%= sr ? 'What exactly should be provided or built, and for whom?' : 'When did it start? What error do you see? What have you already tried?' %>"><%= form.description || '' %></textarea>
+        <%- fieldError('description') %>
+      </label>
+      <% if (sr) { %>
+        <label class="field">Why is it needed?
+          <textarea class="input" name="justification" rows="3" required maxlength="1000" <%- invalid('justification') %>
+            placeholder="The business reason. Your line manager and department head read this when they approve."><%= form.justification || '' %></textarea>
+          <%- fieldError('justification') %>
+        </label>
       <% } %>
-    </div>
 
-    <div class="grid gap-5 sm:grid-cols-2">
-      <label class="field">Category
-        <select class="input" name="category">
-          <% CATEGORIES.forEach(function(c) { %><option <%= (form.category || 'General') === c ? 'selected' : '' %>><%= c %></option><% }) %>
+      <label class="field">Which department should handle it?
+        <select class="input" name="department" required <%- invalid('department') %>>
+          <% departments.forEach(function(d) { %><option value="<%= d.code %>" <%= (form.department || 'IT') === d.code ? 'selected' : '' %>><%= d.name %></option><% }) %>
         </select>
+        <span class="hint"><%= sr ? 'The department that will do the work, e.g. IT for software or access, Facilities for furniture.' : 'Most technology problems go to IT.' %></span>
+        <%- fieldError('department') %>
       </label>
-      <label class="field">Priority
-        <select class="input" name="priority">
-          <% PRIORITIES.forEach(function(p) { %><option <%= (form.priority || 'Medium') === p ? 'selected' : '' %>><%= p %></option><% }) %>
-        </select>
-        <span class="hint">Urgent means you or your team can't work at all.</span>
-      </label>
-    </div>
-    <div class="flex justify-end border-t border-line pt-5">
-      <button type="submit" class="btn-primary"><%- icon('send') %> Submit ticket</button>
-    </div>
-  </form>
-</div>
+
+      <div class="rounded-md border border-dashed border-line bg-sunken p-4">
+        <button type="submit" formaction="/tickets/new/suggest" formnovalidate class="btn-secondary btn-sm"><%- icon('sparkles', 'size-3.5') %> <%= sr ? 'Suggest a category' : 'Suggest a category and check for quick fixes' %></button>
+        <% if (suggestion) { %>
+          <p class="mt-2 text-sm text-ink-soft">
+            Suggested: <strong><%= suggestion.category %></strong>
+            (<%= suggestion.method === 'ai' ? 'AI' : 'keyword match' %>; <%= Math.round(suggestion.confidence * 100) %>% weighted vote among the <%= suggestion.neighbours.length %> most similar tickets). Change it below if it's wrong.
+          </p>
+          <input type="hidden" name="suggestedCategory" value="<%= suggestion.category %>" />
+          <input type="hidden" name="suggestionMethod" value="<%= suggestion.method %>" />
+        <% } else { %>
+          <p class="hint mt-2">Optional. Uses your title and description.</p>
+        <% } %>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <label class="field">Category
+          <select class="input" name="category">
+            <% CATEGORIES.forEach(function(c) { %><option <%= (form.category || 'General') === c ? 'selected' : '' %>><%= c %></option><% }) %>
+          </select>
+        </label>
+        <% if (sr) { %>
+          <label class="field">Needed by <span class="font-normal text-muted">(optional)</span>
+            <input class="input" type="date" name="neededBy" value="<%= form.neededBy || '' %>" <%- invalid('neededBy') %> />
+            <%- fieldError('neededBy') %>
+          </label>
+        <% } %>
+        <label class="field">Priority
+          <select class="input" name="priority">
+            <% PRIORITIES.forEach(function(p) { %><option <%= (form.priority || 'Medium') === p ? 'selected' : '' %>><%= p %></option><% }) %>
+          </select>
+          <span class="hint"><%= sr ? 'How much it matters to your work. Most requests are Medium or Low.' : "Urgent means you or your team can't work at all." %></span>
+        </label>
+      </div>
+      <div class="flex justify-end border-t border-line pt-5">
+        <button type="submit" class="btn-primary"><%- icon('send') %> <%= sr ? 'Submit request' : 'Submit ticket' %></button>
+      </div>
+    </form>
+  </div>
+<% } %>
 
 <%- include('partials/help-widget') %>
 <%- include('partials/layout-bottom') %>

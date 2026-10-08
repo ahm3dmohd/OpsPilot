@@ -11,8 +11,8 @@
 <% if (tickets.length === 0) { %>
   <div class="panel mt-6 panel-body">
     <h2>No tickets yet</h2>
-    <p class="mt-1 text-sm text-ink-soft">When something isn't working, report it and you can follow its progress here. Many common problems have a quick fix in the <a href="/kb">knowledge base</a>.</p>
-    <a href="/tickets/new" class="btn-primary mt-4"><%- icon('plus') %> Report a problem</a>
+    <p class="mt-1 text-sm text-ink-soft">Report something that's broken, or request something new, and follow its progress here. Many common problems have a quick fix in the <a href="/kb">knowledge base</a>.</p>
+    <a href="/tickets/new" class="btn-primary mt-4"><%- icon('plus') %> New ticket</a>
   </div>
 <% } else { %>
   <section class="panel mt-6 overflow-hidden">
@@ -28,7 +28,8 @@
             <span title="<%= fullDate(t.updatedAt) %>">updated <%= timeAgo(t.updatedAt) %></span>
           </span>
         </span>
-        <span class="col-start-2 flex gap-1.5 sm:col-start-auto">
+        <span class="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto">
+          <%- include('partials/type-pill', { type: t.type }) %>
           <span class="pill-<%= slug(t.priority) %>"><%= t.priority %></span>
           <span class="pill-<%= slug(t.status) %> pill-status-<%= slug(t.status) %>"><%= t.status %></span>
         </span>

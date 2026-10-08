@@ -213,10 +213,12 @@ async function main() {
     }
 
     console.log('\nEnd user creates a ticket');
-    r = await endUser.post('/tickets/new/suggest', { title: 'VPN connection keeps dropping', description: 'My VPN disconnects every few minutes when working from home' });
+    r = await endUser.post('/tickets/new/suggest', { type: 'incident', title: 'VPN connection keeps dropping', description: 'My VPN disconnects every few minutes when working from home' });
     check('suggest returns the form with a suggested category', r.status === 200 && r.text.includes('Suggested: <strong>Network</strong>'));
     check('suggest shows a help article before filing', r.text.includes('VPN keeps disconnecting'));
     r = await endUser.post('/tickets', {
+      type: 'incident',
+      department: 'IT',
       title: 'VPN connection keeps dropping',
       // Run tag makes the text unique, so the embeddings API is really
       // called (not served from data/.embedding-cache.json).
@@ -231,8 +233,44 @@ async function main() {
     r = await endUser.get(`/tickets/${newId}`);
     check('requester can view it', r.status === 200);
     check('requester does NOT see the duplicates panel', !r.text.includes('Possible duplicates'));
-    r = await endUser.post('/tickets', { title: '', description: '' });
+    r = await endUser.post('/tickets', { type: 'incident', department: 'IT', title: '', description: '' });
     check('empty ticket is rejected (400)', r.status === 400);
+    check('...with a message next to each missing field', r.text.includes('id="err-title"') && r.text.includes('id="err-description"') && r.text.includes('aria-invalid="true"'));
+
+    console.log('\nTicket type: incident vs service request');
+    r = await endUser.get('/tickets/new');
+    check('new ticket starts with the type choice', r.status === 200 && r.text.includes('data-choose="incident"') && r.text.includes('data-choose="service_request"') && !r.text.includes('name="title"'));
+    r = await endUser.get('/tickets/new?type=incident');
+    check('incident form: problem wording, department picker, no justification', r.text.includes('Report a problem') && r.text.includes('name="department"') && !r.text.includes('name="justification"'));
+    r = await endUser.get('/tickets/new?type=service_request');
+    check('service request form: request wording, justification and needed-by', r.text.includes('Request something') && r.text.includes('name="justification"') && r.text.includes('name="neededBy"'));
+    r = await endUser.post('/tickets', { title: 'No type', description: 'x', department: 'IT' });
+    check('a ticket without a type is refused (400) and sent back to the choice', r.status === 400 && r.text.includes('data-choose="incident"'));
+    r = await endUser.post('/tickets', { type: 'service_request', department: 'IT', title: 'Need Power BI', description: 'Power BI Pro licence' });
+    check('service request without a justification is refused (400)', r.status === 400 && r.text.includes('id="err-justification"'));
+    r = await endUser.post('/tickets', { type: 'incident', department: 'NOPE', title: 'Bad dept', description: 'x' });
+    check('unknown department is refused (400)', r.status === 400 && r.text.includes('id="err-department"'));
+    r = await endUser.post('/tickets', { type: 'service_request', department: 'IT', title: 'Old date', description: 'x', justification: 'y', neededBy: '2001-01-01' });
+    check('a needed-by date in the past is refused (400)', r.status === 400 && r.text.includes('id="err-neededBy"'));
+    r = await endUser.post('/tickets/new/suggest', { type: 'service_request', title: 'Need a second monitor', description: 'A second monitor for my desk' });
+    check('suggest keeps the service-request form and shows no quick fixes', r.status === 200 && r.text.includes('name="justification"') && !r.text.includes('This might fix it'));
+    r = await endUser.post('/tickets', {
+      type: 'service_request', department: 'FAC', title: 'Standing desk for my office', description: 'An electric standing desk for room 2.14',
+      justification: 'Doctor recommended <standing> for back pain', neededBy: '2099-12-31', category: 'Hardware', priority: 'Low',
+    });
+    const srId = (r.location.match(/T-\d+/) || [])[0];
+    check('service request created', r.status === 302 && !!srId, r.location);
+    r = await endUser.get(`/tickets/${srId}`);
+    check('ticket page shows type badge, department and the justification (escaped)',
+      r.text.includes('data-type-pill="service_request"') && r.text.includes('data-department="FAC"') && r.text.includes('Doctor recommended &lt;standing&gt;') && r.text.includes('Needed by'));
+    r = await manager.get('/tickets?type=service_request');
+    check('type filter lists service requests only, with a chip', r.text.includes(`data-ticket="${srId}"`) && r.text.includes('Type: Service request') && !r.text.includes('data-type-pill="incident"'));
+    r = await manager.get('/tickets?type=incident');
+    check('...and incidents only', !r.text.includes(`data-ticket="${srId}"`) && r.text.includes('data-type-pill="incident"'));
+    r = await endUser.get('/dashboard');
+    check("requester's own list shows the type badge", r.text.includes('data-type-pill="service_request"'));
+    r = await manager.get('/reports/tickets.csv?type=service_request');
+    check('CSV has a type column', r.text.includes('"type"') && r.text.includes('"service_request"'));
 
     console.log('\nDuplicate detection (agent view)');
     r = await agent.get(`/tickets/${newId}`);
@@ -316,7 +354,7 @@ async function main() {
     r = await agent2.get('/notifications');
     check('agent2 only got their own assignment, not the other ticket\'s events',
       r.text.includes('assigned T-1017') && !r.text.includes('commented on') && !r.text.includes('is now working on'));
-    await endUser.post('/tickets', { title: 'Whole office offline', description: 'No network anywhere on floor 2', category: 'Network', priority: 'Urgent' });
+    await endUser.post('/tickets', { type: 'incident', department: 'IT', title: 'Whole office offline', description: 'No network anywhere on floor 2', category: 'Network', priority: 'Urgent' });
     r = await agent2.get('/notifications');
     check('Urgent ticket notifies every agent', r.text.includes('New Urgent ticket'));
 
@@ -400,9 +438,9 @@ async function main() {
     check('deleted article is gone (404)', r.status === 404);
 
     console.log('\nCSV export + evaluation page');
-    await endUser.post('/tickets', { title: '=HYPERLINK("http://evil.example","click")', description: 'formula injection test', category: 'General', priority: 'Low' });
+    await endUser.post('/tickets', { type: 'incident', department: 'IT', title: '=HYPERLINK("http://evil.example","click")', description: 'formula injection test', category: 'General', priority: 'Low' });
     r = await manager.get('/reports/tickets.csv');
-    check('manager downloads CSV', r.status === 200 && r.text.includes('"ticketId","title"'));
+    check('manager downloads CSV', r.status === 200 && r.text.includes('"ticketId","type","title"'));
     const csvRows = r.text.trim().split('\r\n');
     check('CSV has one row per ticket (+ header)', csvRows.length >= 24, `(got ${csvRows.length})`);
     check('CSV neutralises formulas', r.text.includes(`"'=HYPERLINK(""http://evil.example"",""click"")"`));
@@ -556,11 +594,12 @@ async function main() {
     r = await agent.post('/tickets/T-1005/department', { department: 'NOPE' });
     check('re-routing to an unknown department is refused (400)', r.status === 400);
     r = await manager.get('/tickets?department=FAC');
-    check('department filter lists it, with a chip', r.text.includes('data-ticket="T-1005"') && r.text.includes('Department: Facilities') && (r.text.match(/data-count="(\d+)"/) || [])[1] === '1');
+    const facCount = (r.text.match(/data-count="(\d+)"/) || [])[1];
+    check('department filter lists it, with a chip', r.text.includes('data-ticket="T-1005"') && r.text.includes('Department: Facilities') && (r.text.match(/data-ticket="/g) || []).length === Number(facCount));
     r = await manager.get('/tickets?department=IT');
     check('...and it left the IT list', !r.text.includes('data-ticket="T-1005"') && r.text.includes('dept-tag'));
     r = await manager.get('/reports/tickets.csv?department=FAC');
-    check('CSV export has a department column and honours the filter', r.text.includes('"department"') && r.text.includes('"T-1005"') && r.text.trim().split('\r\n').length === 2);
+    check('CSV export has a department column and honours the filter', r.text.includes('"department"') && r.text.includes('"T-1005"') && r.text.trim().split('\r\n').length === Number(facCount) + 1);
 
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');

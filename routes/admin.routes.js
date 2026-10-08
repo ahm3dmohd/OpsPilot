@@ -32,7 +32,7 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
   const filters = filtering.parseFilters(req.query);
   const tickets = filtering.applyFilters(filtering.withSla(await store.listTickets({}), now), filters);
   const headers = [
-    'ticketId', 'title', 'description', 'department', 'category', 'priority', 'status',
+    'ticketId', 'type', 'title', 'description', 'department', 'category', 'priority', 'status',
     'requesterName', 'requesterEmail', 'assigneeName', 'assigneeEmail',
     'createdAt', 'updatedAt', 'firstResponseAt', 'resolvedAt',
     'hoursToFirstResponse', 'hoursToResolve', 'slaFirstResponse', 'slaResolution', 'slaOverall',
@@ -46,7 +46,7 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
     const s = t.categorySuggestion;
     const list = (r) => (r && r.status === 'ok' ? r.matches.map((m) => `${m.ticketId} (${m.score})`).join('; ') : '');
     return [
-      t.ticketId, t.title, t.description, t.department || 'IT', t.category, t.priority, t.status,
+      t.ticketId, t.type || 'incident', t.title, t.description, t.department || 'IT', t.category, t.priority, t.status,
       t.requesterName, t.requesterEmail, t.assigneeName, t.assigneeEmail,
       t.createdAt, t.updatedAt, t.firstResponseAt, t.resolvedAt,
       hoursBetween(t.createdAt, t.firstResponseAt), hoursBetween(t.createdAt, t.resolvedAt),

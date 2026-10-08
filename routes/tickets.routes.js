@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
-const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, canTransition, hasManagerRights } = require('../lib/constants');
+const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, TICKET_TYPES, TYPE_LABELS, canTransition, hasManagerRights } = require('../lib/constants');
 const { detectDuplicates } = require('../lib/duplicates');
 const { suggestCategory, suggestAssignee, agentWorkloads } = require('../lib/categorize');
 const { slaFor, timeInStatus } = require('../lib/sla');
@@ -15,6 +15,7 @@ const decisions = require('../lib/duplicateDecisions');
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
 const MAX_COMMENT = 5000;
+const MAX_JUSTIFICATION = 1000;
 const MAX_NOTE = 5000;
 
 const isStaff = (user) => user.role === 'agent' || hasManagerRights(user);
@@ -38,17 +39,38 @@ async function loadTicket(req, res) {
   return ticket;
 }
 
-function renderNew(res, { status = 200, error = null, form = {}, suggestion = null, help = null } = {}) {
-  res.status(status).render('ticket-new', { error, form, suggestion, help, CATEGORIES, PRIORITIES });
+// Without a valid type the page shows the "Incident or Service request?"
+// choice first; with one it shows the form for that type.
+async function renderNew(res, { status = 200, error = null, errors = {}, form = {}, suggestion = null, help = null } = {}) {
+  const departments = await store.listDepartments();
+  res.status(status).render('ticket-new', { error, errors, form, suggestion, help, departments, CATEGORIES, PRIORITIES });
 }
 
 function readForm(body) {
+  const type = TICKET_TYPES.includes(body.type) ? body.type : '';
+  const neededBy = /^\d{4}-\d{2}-\d{2}$/.test(String(body.neededBy || '')) ? String(body.neededBy) : '';
   return {
-    title: (body.title || '').trim().slice(0, MAX_TITLE),
-    description: (body.description || '').trim().slice(0, MAX_DESCRIPTION),
+    type,
+    title: String(body.title || '').trim().slice(0, MAX_TITLE),
+    description: String(body.description || '').trim().slice(0, MAX_DESCRIPTION),
     category: CATEGORIES.includes(body.category) ? body.category : '',
     priority: PRIORITIES.includes(body.priority) ? body.priority : 'Medium',
+    department: String(body.department || ''),
+    // Service requests only.
+    justification: type === 'service_request' ? String(body.justification || '').trim().slice(0, MAX_JUSTIFICATION) : '',
+    neededBy: type === 'service_request' ? neededBy : '',
   };
+}
+
+// Field-by-field messages, shown next to each field.
+async function validateForm(form) {
+  const errors = {};
+  if (!form.title) errors.title = form.type === 'service_request' ? 'Say what you need in a few words.' : "Say what's wrong in a few words.";
+  if (!form.description) errors.description = 'Add a description so the team knows what to do.';
+  if (!(await store.getDepartment(form.department))) errors.department = 'Choose the department that should handle this.';
+  if (form.type === 'service_request' && !form.justification) errors.justification = 'Explain why it is needed. Your approvers read this.';
+  if (form.neededBy && new Date(`${form.neededBy}T23:59:59`) < new Date()) errors.neededBy = 'The date has already passed.';
+  return errors;
 }
 
 // ---- Filtered ticket list (agents + managers) ----
@@ -77,6 +99,7 @@ router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) =
     query: filtering.toQuery(filters),
     agents,
     departments,
+    TYPE_LABELS,
     STATUSES,
     PRIORITIES,
     CATEGORIES,
@@ -87,26 +110,33 @@ router.get('/', requireRole('agent', 'manager'), asyncHandler(async (req, res) =
 }));
 
 // ---- Create (end users only - managers have no creation UI by design) ----
-router.get('/new', requireRole('end_user'), (req, res) => renderNew(res));
+router.get('/new', requireRole('end_user'), asyncHandler(async (req, res) => {
+  const type = TICKET_TYPES.includes(req.query.type) ? req.query.type : '';
+  await renderNew(res, { form: { type, department: 'IT' } });
+}));
 
 // "Suggest category" button: re-renders the form with the AI suggestion
 // pre-selected (still editable) and any knowledge-base articles that might
 // solve the problem without a ticket.
 router.post('/new/suggest', requireRole('end_user'), asyncHandler(async (req, res) => {
   const form = readForm(req.body);
+  if (!form.type) return renderNew(res, { status: 400, error: 'Choose Incident or Service request first.', form });
   if (!form.title && !form.description) {
     return renderNew(res, { status: 400, error: 'Type a title or description first.', form });
   }
   const suggestion = await suggestCategory(form);
   if (suggestion) form.category = suggestion.category;
-  const help = await assistant.ask(`${form.title}\n${form.description}`, req.session.user);
-  renderNew(res, { form, suggestion, help });
+  // Quick-fix articles only make sense when something is broken.
+  const help = form.type === 'incident' ? await assistant.ask(`${form.title}\n${form.description}`, req.session.user) : null;
+  await renderNew(res, { form, suggestion, help });
 }));
 
 router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
   const form = readForm(req.body);
-  if (!form.title || !form.description) {
-    return renderNew(res, { status: 400, error: 'Title and description are required.', form });
+  if (!form.type) return renderNew(res, { status: 400, error: 'Choose Incident or Service request first.', form });
+  const errors = await validateForm(form);
+  if (Object.keys(errors).length) {
+    return renderNew(res, { status: 400, error: 'Please fix the highlighted fields.', errors, form });
   }
   const user = req.session.user;
   // Record what the suggester proposed (if it was used), so the report can
@@ -120,15 +150,19 @@ router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
     };
   }
   const ticket = await store.createTicket({
+    type: form.type,
     title: form.title,
     description: form.description,
+    department: form.department,
+    justification: form.justification || null,
+    neededBy: form.neededBy ? new Date(`${form.neededBy}T00:00:00`) : null,
     category: form.category || 'General',
     priority: form.priority,
     requesterEmail: user.email,
     requesterName: user.name,
     categorySuggestion,
   });
-  await logAction(user, 'ticket.create', { ticketId: ticket.ticketId, category: ticket.category, priority: ticket.priority });
+  await logAction(user, 'ticket.create', { ticketId: ticket.ticketId, type: ticket.type, department: ticket.department, category: ticket.category, priority: ticket.priority });
   await notify.ticketCreated(ticket, user);
 
   // Duplicate detection runs before redirecting so staff see results on
