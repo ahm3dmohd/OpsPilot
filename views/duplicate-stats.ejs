@@ -1,0 +1,62 @@
+<%- include('partials/layout-top', { title: 'Duplicate decisions' }) %>
+<% var pct = function(x) { return x === null ? '–' : Math.round(x * 100) + '%'; };
+   var labels = { ai: 'AI', baseline: 'Baseline', both: 'Both' }; %>
+
+<div class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <h1>Duplicate decisions</h1>
+    <p class="mt-1 max-w-3xl text-sm text-ink-soft">What agents decided about the suggested duplicates on live tickets. The confirmation rate is the share of decided suggestions that were real duplicates, which is the <strong>precision</strong> of each method in real use. It says nothing about recall: duplicates that no method suggested never reach an agent.</p>
+  </div>
+  <a href="/admin/duplicate-stats.csv" class="btn-secondary"><%- icon('download') %> Download CSV</a>
+</div>
+
+<section class="panel mt-6 overflow-x-auto" aria-label="Summary">
+  <table class="data-table" data-stats>
+    <thead><tr><th>Suggestions</th><th class="text-right">Total</th><th class="text-right">Waiting</th><th class="text-right">Decided</th><th class="text-right">Confirmed</th><th class="text-right">Rejected</th><th class="text-right">Confirmation rate</th></tr></thead>
+    <tbody>
+      <% rows.forEach(function(r, i) { %>
+        <tr<%- i === 0 ? ' class="font-medium"' : '' %> data-row="<%= r.label %>">
+          <td><%= r.label %></td>
+          <td class="text-right tabular-nums" data-total><%= r.total %></td>
+          <td class="text-right tabular-nums"><%= r.pending %></td>
+          <td class="text-right tabular-nums"><%= r.decided %></td>
+          <td class="text-right tabular-nums" data-confirmed><%= r.confirmed %></td>
+          <td class="text-right tabular-nums" data-rejected><%= r.rejected %></td>
+          <td class="text-right tabular-nums" data-rate><%= pct(r.rate) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+<p class="mt-2 text-xs text-muted">A suggestion is one pair of tickets, counted once even if both tickets list each other. "Waiting" pairs are still shown on tickets with no decision yet.</p>
+
+<section class="mt-8" aria-labelledby="recent">
+  <h2 id="recent">All decisions</h2>
+  <% if (decisions.length === 0) { %>
+    <p class="mt-2 text-sm text-muted">No decisions yet. Agents confirm or reject suggestions in the Possible duplicates panel on a ticket.</p>
+  <% } else { %>
+    <section class="panel mt-4 overflow-x-auto">
+      <table class="data-table">
+        <thead><tr><th>When</th><th>Pair</th><th>Decision</th><th>Flagged by</th><th class="text-right">AI score</th><th class="text-right">Baseline score</th><th>Agent</th></tr></thead>
+        <tbody>
+          <% decisions.forEach(function(d) { %>
+            <tr>
+              <td class="whitespace-nowrap" title="<%= fullDate(d.createdAt) %>"><%= timeAgo(d.createdAt) %></td>
+              <td class="whitespace-nowrap">
+                <a href="/tickets/<%= d.ticketId %>" class="callsign text-brand"><%= d.ticketId %></a> &amp;
+                <a href="/tickets/<%= d.candidateId %>" class="callsign text-brand"><%= d.candidateId %></a>
+              </td>
+              <td><%= d.decision === 'confirmed' ? 'Confirmed, ' + d.mergedId + ' merged into ' + d.primaryId : 'Rejected' %></td>
+              <td><%= labels[d.flaggedBy] %></td>
+              <td class="text-right tabular-nums"><%= d.aiScore === null ? '–' : d.aiScore.toFixed(3) %></td>
+              <td class="text-right tabular-nums"><%= d.baselineScore === null ? '–' : d.baselineScore.toFixed(3) %></td>
+              <td><%= d.byName %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  <% } %>
+</section>
+
+<%- include('partials/layout-bottom') %>

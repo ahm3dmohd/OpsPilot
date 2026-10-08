@@ -17,6 +17,7 @@ const statusHistorySchema = new mongoose.Schema(
     status: { type: String, enum: STATUSES, required: true },
     at: { type: Date, default: Date.now },
     byEmail: { type: String },
+    reason: { type: String }, // e.g. "Merged into T-1001"
   },
   { _id: false }
 );
@@ -47,6 +48,12 @@ const ticketSchema = new mongoose.Schema({
   // What auto-categorization suggested at creation, kept so the report can
   // measure how often users accepted it.
   categorySuggestion: { type: mongoose.Schema.Types.Mixed, default: null },
+  // Set when an agent confirmed this ticket as a duplicate of an older one:
+  // it is closed and points at the ticket that carries on (see
+  // lib/duplicateDecisions.js). Nothing on it is deleted.
+  mergedInto: { type: String, default: null },
+  mergedAt: { type: Date, default: null },
+  mergedByEmail: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });

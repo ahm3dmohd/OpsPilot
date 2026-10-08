@@ -34,6 +34,7 @@
         <% if (currentUser.role === 'manager') { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Reports</p>
           <a href="/evaluation" class="nav-link" <%- on('/evaluation') %>><%- icon('flask-conical') %> AI evaluation</a>
+          <a href="/admin/duplicate-stats" class="nav-link" <%- on('/admin/duplicate-stats') %>><%- icon('git-compare') %> Duplicate decisions</a>
           <a href="/audit" class="nav-link" <%- on('/audit') %>><%- icon('shield-check') %> Audit log</a>
           <a href="/reports/tickets.csv" class="nav-link"><%- icon('download') %> Export CSV</a>
         <% } %>

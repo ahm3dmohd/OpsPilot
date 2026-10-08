@@ -100,12 +100,14 @@ hanging).
 | Assign to an agent | ❌ | ❌ | ✅ |
 | Change status | ❌ | ✅ | ✅ |
 | See possible duplicates | ❌ (would leak others' tickets) | ✅ | ✅ |
+| Confirm (merge) / reject a suggested duplicate | ❌ | ✅ | ✅ |
+| Internal (staff-only) notes: read and write | ❌ never sent to them | ✅ | ✅ |
 | Read / search / rate KB articles | ✅ | ✅ | ✅ |
 | Write / edit KB articles | ❌ | ✅ | ✅ |
 | Delete KB articles | ❌ | ❌ | ✅ |
 | Notifications | own | own | own |
 | Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
-| CSV export, AI evaluation page, audit log | ❌ | ❌ | ✅ |
+| CSV export, AI evaluation page, duplicate-decision stats, audit log | ❌ | ❌ | ✅ |
 
 Real authentication: sessions (`express-session`) and bcrypt-hashed
 passwords. The session ID is regenerated on login. Cookies are `httpOnly`
@@ -164,6 +166,34 @@ are stored side by side on the ticket (`duplicates.ai` and
 fit OpenAI's model, not Gemini's. On the seed set, Gemini at 0.82 flagged
 16 false pairs. Both thresholds are now each method's best-F1 value on the
 seed set, so the two methods were tuned the same way.
+
+### Agent decisions: confirm / reject + merge
+
+Each suggestion on the ticket page has **Confirm & merge** and **Reject**
+buttons (`lib/duplicateDecisions.js`). Every decision is stored in its own
+collection (`DuplicateDecision`): the pair, which method(s) flagged it,
+both scores and thresholds at the time, the decision, the agent and the
+time. A pair can only be decided once.
+
+- **Confirm** merges the **newer** ticket into the **older** one. The newer
+  ticket is closed and points to the older one (`mergedInto`); nothing on
+  it is deleted. The older ticket gets a staff-only internal note with a
+  full copy of the newer ticket's description, comments and internal
+  notes. They are copied as an internal note, not as comments, because the
+  two requesters are usually different people. The newer ticket's
+  requester is notified that it was closed as a duplicate, without the
+  other ticket's ID.
+- **Reject** records the decision and the pair is never suggested again
+  (also after "Re-run check"). Merged tickets are never suggested again
+  either.
+- **`/admin/duplicate-stats`** (managers): total suggested pairs, waiting,
+  confirmed, rejected and the confirmation rate, overall and per method
+  (AI, baseline, both, AI only, baseline only), plus a one-row-per-decision
+  CSV at `/admin/duplicate-stats.csv`.
+
+The confirmation rate is the **precision** of each method in real use. It
+can't measure recall: duplicates that no method suggested never reach an
+agent.
 
 ### Evaluation (`npm run evaluate`, or `/evaluation` in the app)
 
@@ -232,9 +262,16 @@ as the seed tickets.
   - assigned by a manager → requester + agent
   - status changed / comment → requester + assignee
   - new Urgent ticket → every agent
+  - closed as a confirmed duplicate → that ticket's requester
 
   You're never notified about your own actions. A failed notification
   never undoes the action that triggered it.
+- **Internal notes**: a yellow, lock-labelled panel on the ticket page for
+  staff-only notes. They live in their own collection (`InternalNote`),
+  not inside the ticket, and the ticket route only loads them for agents
+  and managers, so the requester's page, notifications and the CSV export
+  never contain them. Posting one is a 403 for end users. The audit log
+  records that a note was added, not its text.
 - **Knowledge base** (`/kb`): browse and keyword search for everyone.
   Agents and managers can write and edit articles; managers can delete
   them. Each article tracks **views** (counted once per session) and
@@ -256,7 +293,8 @@ environment. Adding `nodemailer` behind an optional `SMTP_URL` inside
 
 **Also added:** a hash-chained audit log (`/audit`, managers only) that
 records logins, sign-ups, ticket creation, duplicate checks, claims,
-assignments, status changes, comments, KB edits and CSV exports. Each entry's hash covers the
+assignments, status changes, comments, internal notes (not their text),
+duplicate confirm/reject decisions, KB edits and CSV exports. Each entry's hash covers the
 previous entry, and the page verifies the whole chain, so editing or
 deleting history is detectable. It works in both modes, and a failed audit
 write never blocks the user's action.
@@ -290,13 +328,13 @@ server.js                entry point: sessions, DB-or-mock decision, routes, sta
 routes/
   auth.routes.js           login, register (End User only), logout
   dashboard.routes.js      role-based dashboards (end user / agent / manager)
-  tickets.routes.js        create, suggest, view, claim, assign, status, comment, re-run duplicates
-  admin.routes.js          audit log, AI evaluation page, CSV export, help assistant
+  tickets.routes.js        create, suggest, view, claim, assign, status, comment, internal notes, re-run / confirm / reject duplicates
+  admin.routes.js          audit log, AI evaluation page, CSV export, duplicate-decision stats, help assistant
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
@@ -304,6 +342,7 @@ lib/
   embeddings.js            Gemini / OpenAI embeddings client with cache, timeout, never throws
   similarity.js            cosine, tokenizer, stemmer, Jaccard (hand-written)
   duplicates.js            the two duplicate-detection methods
+  duplicateDecisions.js    confirm (merge) / reject a suggested pair, decision stats
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval
@@ -326,6 +365,6 @@ docs/evaluation-results.md latest evaluation output
 views/                   EJS templates (partials/layout-top.ejs = app shell, partials/ticket-strip.ejs = flight strip)
 src/styles/app.css       Tailwind source: design tokens, components, dark mode
 public/css/app.css       compiled CSS (npm run build:css)
-public/js/app.js         theme toggle, mobile menu, "/" shortcut
+public/js/app.js         theme toggle, mobile menu, "/" shortcut, confirm-before-merge
 public/fonts/            IBM Plex (OFL licence)
 ```

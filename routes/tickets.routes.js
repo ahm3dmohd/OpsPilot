@@ -10,6 +10,7 @@ const assistant = require('../lib/assistant');
 const { logAction } = require('../lib/activity');
 const notify = require('../lib/notify');
 const filtering = require('../lib/ticketFilters');
+const decisions = require('../lib/duplicateDecisions');
 
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
@@ -164,9 +165,12 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     // Internal notes are only ever loaded for staff - the requester's page
     // never has them in hand, so no template mistake can leak them.
     internalNotes: staff ? await store.listInternalNotes(ticket.ticketId) : [],
+    // Tickets merged into this one (their IDs are other people's tickets).
+    mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
     agents: user.role === 'manager' && !ticket.assigneeEmail ? await agentWorkloads() : [],
-    flash: req.query.msg || null,
+    flash: req.query.msg ? String(req.query.msg) : null,
+    mergedFrom: /^T-\d+$/.test(String(req.query.from || '')) ? String(req.query.from) : null,
   });
 }));
 
@@ -234,6 +238,30 @@ router.post('/:id/duplicates', requireRole('agent', 'manager'), asyncHandler(asy
   await detectDuplicates(existing.ticketId);
   await logAction(req.session.user, 'ticket.duplicates.rerun', { ticketId: existing.ticketId });
   res.redirect(`/tickets/${existing.ticketId}#duplicates`);
+}));
+
+// Confirm / reject one suggested duplicate (see lib/duplicateDecisions.js).
+// Confirm merges the newer ticket of the pair into the older one.
+const DECISION_FLASH = { not_suggested: 'not_suggested', already_decided: 'already_decided', already_merged: 'already_merged' };
+
+router.post('/:id/duplicates/:otherId/confirm', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+  const user = req.session.user;
+  const id = String(req.params.id);
+  const result = await decisions.confirm(id, String(req.params.otherId), user);
+  if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
+  if (result.reason) return res.redirect(`/tickets/${id}?msg=${DECISION_FLASH[result.reason]}#duplicates`);
+  await logAction(user, 'duplicate.confirm', { ticketId: id, candidateId: String(req.params.otherId), primaryId: result.primary.ticketId, mergedId: result.merged.ticketId });
+  res.redirect(`/tickets/${result.primary.ticketId}?msg=merged&from=${encodeURIComponent(result.merged.ticketId)}#notes`);
+}));
+
+router.post('/:id/duplicates/:otherId/reject', requireRole('agent', 'manager'), asyncHandler(async (req, res) => {
+  const user = req.session.user;
+  const id = String(req.params.id);
+  const result = await decisions.reject(id, String(req.params.otherId), user);
+  if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
+  if (result.reason) return res.redirect(`/tickets/${id}?msg=${DECISION_FLASH[result.reason]}#duplicates`);
+  await logAction(user, 'duplicate.reject', { ticketId: id, candidateId: String(req.params.otherId), flaggedBy: result.decision.flaggedBy });
+  res.redirect(`/tickets/${id}?msg=rejected#duplicates`);
 }));
 
 // ---- Comments (requester, any agent, any manager) ----

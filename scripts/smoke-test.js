@@ -170,6 +170,11 @@ async function main() {
       [endUser, 'GET', '/tickets', 'end user -> filtered ticket list'],
       [endUser, 'GET', '/tickets?status=Open', 'end user -> filtered ticket list with filters'],
       [agent, 'GET', '/evaluation', 'agent -> evaluation page'],
+      [endUser, 'POST', '/tickets/T-1003/duplicates/T-1001/confirm', 'end user -> confirm duplicate'],
+      [endUser, 'POST', '/tickets/T-1003/duplicates/T-1001/reject', 'end user -> reject duplicate'],
+      [endUser, 'GET', '/admin/duplicate-stats', 'end user -> duplicate stats'],
+      [agent, 'GET', '/admin/duplicate-stats', 'agent -> duplicate stats'],
+      [agent, 'GET', '/admin/duplicate-stats.csv', 'agent -> duplicate decisions CSV'],
     ];
     for (const [c, method, url, label] of forbidden) {
       r = method === 'GET' ? await c.get(url) : await c.post(url, { body: 'x', status: 'Closed', title: 'x', description: 'x' });
@@ -284,6 +289,57 @@ async function main() {
     r = await agent2.get('/notifications');
     check('Urgent ticket notifies every agent', r.text.includes('New Urgent ticket'));
 
+    console.log('\nConfirm / reject duplicates + merge');
+    r = await agent.get(`/tickets/${newId}`);
+    const suggested = [...new Set([...r.text.matchAll(new RegExp(`/tickets/${newId}/duplicates/(T-\\d+)/confirm`, 'g'))].map((m) => m[1]))];
+    check('each suggestion has Confirm and Reject buttons', suggested.length >= 2 && r.text.includes(`/tickets/${newId}/duplicates/${suggested[0]}/reject`), `(found ${suggested.join(', ')})`);
+    const [rejectedId, primaryId] = suggested;
+    r = await agent.post(`/tickets/${newId}/duplicates/${rejectedId}/reject`);
+    check('agent rejects a suggestion', r.status === 302 && r.location.includes('msg=rejected'));
+    r = await agent.get(`/tickets/${newId}`);
+    check('rejected pair disappears from the suggestions', !r.text.includes(`/duplicates/${rejectedId}/confirm`) && r.text.includes(`/duplicates/${primaryId}/confirm`));
+    r = await agent2.post(`/tickets/${newId}/duplicates/${rejectedId}/reject`);
+    check('the same pair cannot be decided twice', r.location.includes('msg=not_suggested') || r.location.includes('msg=already_decided'));
+    await agent.post(`/tickets/${newId}/duplicates`);
+    r = await agent.get(`/tickets/${newId}`);
+    check('re-running the check does not suggest the rejected pair again', !r.text.includes(`/duplicates/${rejectedId}/confirm`) && r.text.includes(`/duplicates/${primaryId}/confirm`));
+    r = await agent.post(`/tickets/${newId}/duplicates/${newId}/confirm`);
+    check('a ticket cannot be merged into itself', r.location.includes('msg=not_suggested'));
+    const notSuggested = ['T-1017', 'T-1018', 'T-1019', 'T-1020', 'T-1010', 'T-1011'].find((id) => !suggested.includes(id));
+    r = await agent.post(`/tickets/${newId}/duplicates/${notSuggested}/confirm`);
+    check('a pair that was never suggested is refused', r.location.includes('msg=not_suggested'));
+    r = await agent.post(`/tickets/${newId}/duplicates/T-9999/confirm`);
+    check('unknown ticket is a 404', r.status === 404);
+
+    r = await agent.post(`/tickets/${newId}/duplicates/${primaryId}/confirm`);
+    check('agent confirms: redirected to the OLDER ticket', r.status === 302 && r.location.startsWith(`/tickets/${primaryId}?msg=merged`));
+    r = await agent.get(`/tickets/${primaryId}`);
+    check('primary links the merged ticket', /data-merged-children[\s\S]*?\/tickets\/T-\d+/.test(r.text) && r.text.includes(`>${newId}</a>`));
+    check('primary has an internal note with the description and every comment', r.text.includes(`Merged ${newId}`) && r.text.includes('Wired is the same.') && r.text.includes('Looking into it') && r.text.includes('My VPN disconnects'));
+    check("...and the merged ticket's own internal notes", r.text.includes(NOTE_SECRET));
+    r = await agent.get(`/tickets/${newId}`);
+    check('merged ticket is Closed, points to the primary, and keeps its comments', r.text.includes('data-merged-banner') && r.text.includes(`href="/tickets/${primaryId}"`) && r.text.includes('pill-status-closed') && r.text.includes('Wired is the same.'));
+    check('merged ticket shows no more Confirm buttons', !r.text.includes('/confirm"'));
+    r = await endUser.get(`/tickets/${newId}`);
+    check('requester sees "closed as a duplicate" and still has their comments', r.text.includes('closed as a duplicate') && r.text.includes('Wired is the same.'));
+    check("...but not the other ticket's ID or the merge note", !r.text.includes(`/tickets/${primaryId}`) && !r.text.includes(`Merged ${newId}`));
+    r = await endUser.get('/notifications');
+    check('requester is notified of the merge', r.text.includes('as a duplicate of an issue IT is already working on'));
+    r = await agent2.post(`/tickets/${primaryId}/duplicates/${newId}/confirm`);
+    check('a merged ticket cannot be merged again', r.location.includes('msg=already_merged') || r.location.includes('msg=not_suggested'));
+    await agent.post(`/tickets/${primaryId}/duplicates`);
+    r = await agent.get(`/tickets/${primaryId}`);
+    check('merged ticket is never suggested again', !r.text.includes(`/duplicates/${newId}/confirm`));
+
+    r = await manager.get('/admin/duplicate-stats');
+    const allRow = (r.text.match(/data-row="All suggestions">([\s\S]*?)<\/tr>/) || ['', ''])[1];
+    const cell = (name) => ((allRow.match(new RegExp(`data-${name}>([^<]*)<`)) || [])[1] || '').trim();
+    check('stats page: 1 confirmed, 1 rejected, 50% rate', r.status === 200 && cell('confirmed') === '1' && cell('rejected') === '1' && cell('rate') === '50%', `(got ${cell('confirmed')}/${cell('rejected')}/${cell('rate')})`);
+    r = await manager.get('/admin/duplicate-stats.csv');
+    const decisionRows = r.text.trim().split('\r\n');
+    check('decisions CSV: header + one row per decision, with scores', r.status === 200 && decisionRows.length === 3 && r.text.includes('"baselineScore"') && r.text.includes('"confirmed"') && r.text.includes('"rejected"'), `(got ${decisionRows.length} lines)`);
+    check('decisions CSV records the merge direction', r.text.includes(`"${primaryId}","${newId}"`));
+
     console.log('\nKnowledge base');
     r = await endUser.get('/kb');
     check('end user can browse the KB', r.status === 200 && r.text.includes('VPN keeps disconnecting'));
@@ -360,6 +416,7 @@ async function main() {
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
+    check('audit logs duplicate decisions', r.text.includes('duplicate.confirm') && r.text.includes('duplicate.reject'));
     check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });
     check('help assistant returns the password article', help.status === 200 && help.body.articles.some((a) => a.articleId === 'KB-02'));

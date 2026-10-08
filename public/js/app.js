@@ -39,6 +39,13 @@
     }
   });
 
+  // Forms with data-confirm ask first (e.g. merging tickets). Without
+  // JavaScript they simply submit.
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest('form[data-confirm]');
+    if (form && !window.confirm(form.dataset.confirm)) e.preventDefault();
+  });
+
   // Make whole strip rows/linked rows keyboard-free clickable without
   // nesting links: rows with data-href navigate on click.
   document.addEventListener('click', function (e) {

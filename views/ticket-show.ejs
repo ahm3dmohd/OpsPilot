@@ -3,12 +3,29 @@
 <% var flashes = {
      already_claimed: 'Someone else claimed this ticket first.',
      bad_transition: "That status change isn't allowed from the current status.",
-     changed: 'The ticket changed while you were looking at it. Check the new status and try again.'
+     changed: 'The ticket changed while you were looking at it. Check the new status and try again.',
+     not_suggested: 'That ticket is no longer a suggested duplicate of this one. The list may have changed.',
+     already_decided: 'Someone already confirmed or rejected that pair.',
+     already_merged: 'One of the two tickets has already been merged into another ticket.'
+   };
+   var okFlashes = {
+     merged: (mergedFrom || 'The newer ticket') + ' was merged into this ticket. Its description and comments are copied into the internal notes below.',
+     rejected: 'Suggestion rejected. That pair will not be suggested again.'
    }; %>
 
 <a href="<%= currentUser.role === 'end_user' ? '/dashboard' : '/tickets' %>" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> <%= currentUser.role === 'end_user' ? 'My tickets' : 'All tickets' %></a>
 
 <% if (flash && flashes[flash]) { %><p class="notice-error mt-4" role="alert"><%= flashes[flash] %></p><% } %>
+<% if (flash && okFlashes[flash]) { %><p class="notice-ok mt-4" role="status"><%= okFlashes[flash] %></p><% } %>
+<% if (ticket.mergedInto) { %>
+  <p class="notice-info mt-4 flex flex-wrap items-center gap-2" data-merged-banner><%- icon('git-merge') %>
+    <% if (currentUser.role === 'end_user') { %>
+      This ticket was closed as a duplicate: IT is already working on the same issue. If your problem is different, add a comment below.
+    <% } else { %>
+      Merged into <a href="/tickets/<%= ticket.mergedInto %>" class="callsign text-brand"><%= ticket.mergedInto %></a> as a confirmed duplicate <span title="<%= fullDate(ticket.mergedAt) %>"><%= timeAgo(ticket.mergedAt) %></span>. Nothing here was deleted.
+    <% } %>
+  </p>
+<% } %>
 
 <div class="mt-4 flex flex-wrap items-start gap-x-4 gap-y-2">
   <span class="callsign mt-1.5 rounded border border-line bg-surface px-2 py-0.5"><%= ticket.ticketId %></span>
@@ -63,6 +80,16 @@
                           <a href="/tickets/<%= m.ticketId %>" class="callsign text-brand"><%= m.ticketId %></a>
                           <span class="text-ink"><%= m.title %></span>
                           <span class="block text-xs text-muted"><%= m.status %></span>
+                          <% if (!ticket.mergedInto) { %>
+                            <span class="mt-1.5 flex flex-wrap gap-2">
+                              <form action="/tickets/<%= ticket.ticketId %>/duplicates/<%= m.ticketId %>/confirm" method="POST" data-confirm="Merge these two tickets? The newer one is closed and its description and comments are copied to the older one as an internal note.">
+                                <button type="submit" class="btn-secondary btn-sm" title="Confirm duplicate: the newer ticket is merged into the older one"><%- icon('git-merge', 'size-3.5') %> Confirm &amp; merge</button>
+                              </form>
+                              <form action="/tickets/<%= ticket.ticketId %>/duplicates/<%= m.ticketId %>/reject" method="POST">
+                                <button type="submit" class="btn-ghost btn-sm" title="Not a duplicate: don't suggest this pair again"><%- icon('x', 'size-3.5') %> Reject</button>
+                              </form>
+                            </span>
+                          <% } %>
                         </span>
                       </li>
                     <% }) %>
@@ -82,6 +109,12 @@
           <h2 id="notesHeading" class="text-base">Internal notes</h2>
           <span class="lock-label"><%- icon('lock', 'size-3.5') %> Staff only, the requester can't see these</span>
         </div>
+        <% if (mergedChildren.length) { %>
+          <p class="border-b border-caution/30 px-5 py-2.5 text-sm text-ink-soft" data-merged-children>
+            <%- icon('git-merge', 'size-3.5 inline') %> Merged into this ticket:
+            <% mergedChildren.forEach(function(c, i) { %><%= i ? ', ' : '' %><a href="/tickets/<%= c.ticketId %>" class="callsign text-brand"><%= c.ticketId %></a><% }) %>
+          </p>
+        <% } %>
         <% if (internalNotes.length) { %>
           <ol class="divide-y divide-caution/20">
             <% internalNotes.forEach(function(n) { %>
@@ -112,7 +145,7 @@
     <section aria-labelledby="activity">
       <h2 id="activity">Activity</h2>
       <% var events = []
-           .concat((ticket.statusHistory || []).map(function(h) { return { at: h.at, status: h.status }; }))
+           .concat((ticket.statusHistory || []).map(function(h) { return { at: h.at, status: h.status, reason: h.reason }; }))
            .concat(ticket.comments.map(function(c) { return { at: c.createdAt, comment: c }; }))
            .sort(function(a, b) { return new Date(a.at) - new Date(b.at); }); %>
       <ol class="relative mt-4 space-y-4 border-l border-line pl-6">
@@ -130,7 +163,7 @@
               </div>
             <% } else { %>
               <span class="absolute top-1.5 -left-[1.85rem] size-2.5 rounded-full border-2 border-canvas bg-muted"></span>
-              <p class="text-sm text-muted">Status set to <span class="font-medium text-ink"><%= e.status %></span> <span title="<%= fullDate(e.at) %>"><%= timeAgo(e.at) %></span></p>
+              <p class="text-sm text-muted">Status set to <span class="font-medium text-ink"><%= e.status %></span><% if (e.reason && currentUser.role !== 'end_user') { %> (<%= e.reason %>)<% } %> <span title="<%= fullDate(e.at) %>"><%= timeAgo(e.at) %></span></p>
             <% } %>
           </li>
         <% }) %>

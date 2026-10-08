@@ -7,6 +7,7 @@ const { runEvaluation } = require('../lib/evaluation');
 const { toCsv } = require('../lib/csv');
 const { logAction } = require('../lib/activity');
 const filtering = require('../lib/ticketFilters');
+const decisions = require('../lib/duplicateDecisions');
 
 // ---- Audit log (managers only) ----
 router.get('/audit', requireRole('manager'), asyncHandler(async (req, res) => {
@@ -37,6 +38,7 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
     'hoursToFirstResponse', 'hoursToResolve', 'slaFirstResponse', 'slaResolution', 'slaOverall',
     'comments', 'aiStatus', 'aiMatches', 'baselineMatches',
     'categorySuggested', 'categorySuggestionMethod', 'categorySuggestionAccepted',
+    'mergedInto',
   ];
   const rows = tickets.map((t) => {
     const { sla } = t;
@@ -51,12 +53,38 @@ router.get('/reports/tickets.csv', requireRole('manager'), asyncHandler(async (r
       sla.firstResponse.state, sla.resolution.state, sla.overall,
       (t.comments || []).length, d ? d.ai.status : 'not checked', list(d && d.ai), list(d && d.baseline),
       s ? s.suggested : '', s ? s.method : '', s ? s.accepted : '',
+      t.mergedInto || '',
     ];
   });
   const stamp = now.toISOString().slice(0, 10);
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="opspilot-tickets-${stamp}.csv"`);
   await logAction(req.session.user, 'report.export', { rows: rows.length, filters });
+  res.send(toCsv(headers, rows));
+}));
+
+// ---- Duplicate decisions: how often agents confirmed each method's
+// suggestions (managers only). Page + one-row-per-decision CSV. ----
+router.get('/admin/duplicate-stats', requireRole('manager'), asyncHandler(async (req, res) => {
+  res.render('duplicate-stats', await decisions.stats());
+}));
+
+router.get('/admin/duplicate-stats.csv', requireRole('manager'), asyncHandler(async (req, res) => {
+  const { rows: summary, decisions: list } = await decisions.stats();
+  const headers = [
+    'decidedAt', 'ticketId', 'candidateId', 'decision', 'flaggedBy',
+    'aiScore', 'baselineScore', 'aiThreshold', 'baselineThreshold', 'aiModel',
+    'primaryId', 'mergedId', 'agentName', 'agentEmail',
+  ];
+  const rows = list.map((d) => [
+    d.createdAt, d.ticketId, d.candidateId, d.decision, d.flaggedBy,
+    d.aiScore, d.baselineScore, d.aiThreshold, d.baselineThreshold, d.aiModel,
+    d.primaryId, d.mergedId, d.byName, d.byEmail,
+  ]);
+  const all = summary[0];
+  await logAction(req.session.user, 'report.duplicate_decisions', { rows: rows.length, confirmed: all.confirmed, rejected: all.rejected });
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="opspilot-duplicate-decisions-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send(toCsv(headers, rows));
 }));
 

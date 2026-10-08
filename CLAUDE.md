@@ -40,6 +40,11 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
   (`lib/ticketFilters.js`). Keep it that way; the test checks every link.
 - SLA "at risk" is a rule (75% of target used), not a trained model. Don't call
   it prediction.
+- Internal notes live in their own collection and are only loaded by routes
+  that already checked the user is staff. Never embed them in the ticket.
+- Confirm = merge NEWER into OLDER; the merged ticket's comments are copied
+  to the primary as a staff-only internal note (requesters differ). The
+  decision stats are precision only, never call them recall/accuracy.
 - Help assistant is retrieval only (returns written KB articles, no generated
   text). End users never see other users' tickets or duplicate results.
 - UI: Tailwind v4, compiled (not CDN). Semantic colour tokens + dark mode in
@@ -51,5 +56,5 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 - Real MongoDB mode is only verified by review + simulation; run the
   TEST_MONGODB_URI test above on a machine with MongoDB.
 - Known gaps: no CSRF tokens, in-memory session store, no password reset.
-- Suggested next features: internal (staff-only) notes; confirm/reject duplicate
-  + merge (gives real-usage accuracy data for the thesis).
+- Built: internal notes, confirm/reject duplicates + merge (/admin/duplicate-stats).
+  Next planned: canned responses.
