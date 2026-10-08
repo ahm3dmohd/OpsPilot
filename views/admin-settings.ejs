@@ -1,0 +1,65 @@
+<%- include('partials/layout-top', { title: 'Settings' }) %>
+<% var pct = function(x) { return Math.round(x * 100) + '%'; };
+   var rechecked = flash && /^rechecked_\d+$/.test(flash) ? flash.split('_')[1] : null;
+   var cards = [
+     { key: 'aiThreshold', name: 'AI method', what: 'Meaning similarity', how: 'Compares what two tickets mean, using embeddings' + (aiModel ? ' (' + aiModel + ')' : '') + ' and cosine similarity. Catches the same problem described in different words.', fb: feedback.ai },
+     { key: 'baselineThreshold', name: 'Baseline method', what: 'Keyword overlap', how: 'Counts the share of important words two tickets have in common (Jaccard similarity). Only catches tickets that use the same words.', fb: feedback.baseline }
+   ]; %>
+
+<h1>Settings</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">Duplicate detection suggests a ticket as a possible duplicate when its similarity score is at or above the threshold. Each method has its own threshold because their scores mean different things.</p>
+
+<% if (flash && flash.indexOf('saved_') === 0) { %><p class="notice-ok mt-4" role="status">Threshold saved. New tickets use it from now on. Use "Re-check active tickets" to update existing suggestions.</p><% } %>
+<% if (rechecked) { %><p class="notice-ok mt-4" role="status">Re-checked <%= rechecked %> active tickets with the current thresholds.</p><% } %>
+<% if (flash && flash.indexOf('out_of_range_') === 0) { %><p class="notice-error mt-4" role="alert">That value is out of range. Use a number between <%= t[flash.replace('out_of_range_', '')].min %> and <%= t[flash.replace('out_of_range_', '')].max %>.</p><% } %>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <% cards.forEach(function(c) { var s = t[c.key]; %>
+    <section class="panel" aria-labelledby="h-<%= c.key %>" data-setting="<%= c.key %>">
+      <div class="panel-head">
+        <h2 id="h-<%= c.key %>"><%= c.name %>: <%= c.what.toLowerCase() %></h2>
+        <span class="text-2xl font-semibold tabular-nums text-brand" data-live="<%= s.live %>"><%= pct(s.live) %></span>
+      </div>
+      <div class="panel-body space-y-4">
+        <p class="text-sm text-ink-soft"><%= c.how %></p>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          <dt class="text-muted">In use now</dt>
+          <dd class="tabular-nums"><%= s.live.toFixed(2) %> (<%= pct(s.live) %>)<%= s.changed ? ', set by ' + s.changed.byName + ' ' + timeAgo(s.changed.updatedAt) : ', the tuned value' %></dd>
+          <dt class="text-muted">Tuned value</dt>
+          <dd class="tabular-nums"><%= s.tuned.toFixed(2) %> <span class="text-muted">(best F1 on the seed set; the <a href="/evaluation">evaluation</a> always uses this)</span></dd>
+          <% if (c.fb && c.fb.decided) { %>
+            <dt class="text-muted">Agents confirmed</dt>
+            <dd><%= c.fb.confirmed %> of <%= c.fb.decided %> suggestions (<%= pct(c.fb.rate) %>) <a href="/admin/duplicate-stats" class="text-xs">details</a></dd>
+          <% } %>
+        </dl>
+
+        <div class="grid gap-2 text-sm sm:grid-cols-2">
+          <p class="rounded-md bg-sunken p-3"><span class="flex items-center gap-1 font-medium text-ink"><%- icon('arrow-up', 'size-3.5') %> Raising it</span>Fewer suggestions, and more of them are real duplicates. More real duplicates are missed.</p>
+          <p class="rounded-md bg-sunken p-3"><span class="flex items-center gap-1 font-medium text-ink"><%- icon('arrow-down', 'size-3.5') %> Lowering it</span>More duplicates are caught, but agents see more false alarms to reject.</p>
+        </div>
+
+        <form action="/admin/settings/thresholds" method="POST" class="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="key" value="<%= c.key %>" />
+          <label class="field">New threshold
+            <input class="input w-32" type="number" name="value" required step="0.01" min="<%= s.min %>" max="<%= s.max %>" value="<%= s.live.toFixed(2) %>" />
+            <span class="hint">Between <%= s.min %> and <%= s.max %></span>
+          </label>
+          <button type="submit" class="btn-primary">Save</button>
+          <% if (s.changed) { %><button type="submit" name="reset" value="1" formnovalidate class="btn-ghost">Back to tuned value</button><% } %>
+        </form>
+      </div>
+    </section>
+  <% }) %>
+</div>
+
+<section class="panel panel-body mt-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h2 class="text-base">Re-check active tickets</h2>
+    <p class="mt-1 text-sm text-muted">A new threshold applies to new tickets. This re-runs both methods on every open, in-progress and pending ticket so their suggestions use the current thresholds. Pairs agents already confirmed or rejected stay hidden.</p>
+  </div>
+  <form action="/admin/settings/recheck" method="POST" data-confirm="Re-run duplicate detection on all active tickets?">
+    <button type="submit" class="btn-secondary"><%- icon('refresh-cw') %> Re-check active tickets</button>
+  </form>
+</section>
+
+<%- include('partials/layout-bottom') %>

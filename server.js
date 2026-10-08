@@ -14,6 +14,7 @@ const { detectDuplicates, ensureEmbeddings } = require('./lib/duplicates');
 const { DEMO_USERS, DEMO_PASSWORD } = require('./lib/seedData');
 const viewHelpers = require('./lib/viewHelpers');
 const { hasManagerRights } = require('./lib/constants');
+const settings = require('./lib/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -169,7 +170,8 @@ app.use((err, req, res, next) => {
   res.status(500).render('500', { title: 'Something went wrong' });
 });
 
-connectDatabase().then(() => {
+connectDatabase().then(async () => {
+  await settings.load().catch((err) => console.error('Loading settings failed:', err.message));
   app.listen(PORT, () => {
     console.log(`OpsPilot running on http://localhost:${PORT}`);
     warmUp();

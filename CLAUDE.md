@@ -35,7 +35,9 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
   gives "skipped", and an API failure gives "error"; ticket creation never breaks.
 - Duplicate thresholds: AI 0.88 (Gemini), baseline Jaccard 0.10. Both are each
   method's best-F1 value on the seed set, so they were tuned the same way. Don't
-  change them without re-running `npm run evaluate`. Quote HELD-OUT numbers
+  change them without re-running `npm run evaluate`. Admins can set LIVE
+  thresholds on /admin/settings (lib/settings.js); the evaluation always uses
+  the tuned ones (tunedAiThreshold) - keep it that way. Quote HELD-OUT numbers
   (AI F1 0.95 vs. baseline 0.67), never the tuned seed-set ones.
 - Dashboard numbers are computed with the same filters as the lists they link to
   (`lib/ticketFilters.js`). Keep it that way; the test checks every link.

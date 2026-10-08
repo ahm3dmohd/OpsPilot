@@ -287,7 +287,17 @@ async function main() {
       check('AI method shows as skipped, not an error page', r.status === 200 && r.text.includes('Skipped: No LLM_API_KEY configured'));
     }
     r = await agent.get('/dashboard');
-    check('agent queue shows a duplicate badge', r.text.includes('Dup? AI'));
+    check('agent queue shows a duplicate badge', r.text.includes('Possible duplicate: AI'));
+    r = await agent.get(`/tickets/${newId}`);
+    const kwMatch = (/data-method="baseline"[\s\S]*?data-dup-match="(T-\d+)"/.exec(r.text) || [])[1];
+    check('each suggestion shows a labelled score bar against the threshold', /Keyword overlap<\/span>\s*<span class="score-bar"/.test(r.text) && r.text.includes('class="score-threshold"'));
+    check('...and a plain-language reason with percentages', /Suggested because keyword overlap \(\d+%\) (is above|reaches) the threshold \(10%\)\./.test(r.text), kwMatch);
+    check('the threshold each method used is shown', r.text.includes('data-threshold="0.1"'));
+    if (aiOn) {
+      check('AI vs baseline: summary of what each found', r.text.includes('data-dup-compare') && r.text.includes('agree-tag-both') && /Suggested because meaning similarity \(\d+%\)/.test(r.text));
+    } else {
+      check('without AI the panel says only the baseline ran', r.text.includes("The AI method didn't run on this ticket"));
+    }
 
     console.log('\nWorkflow');
     r = await agent.post(`/tickets/${newId}/status`, { status: 'Closed' });
@@ -728,12 +738,42 @@ async function main() {
     r = await endUser.get('/tickets/T-1003');
     check('incidents have no approval panel', r.status === 200 && !r.text.includes('id="approval"'));
 
+    console.log('\nAdmin settings: duplicate thresholds');
+    r = await admin.get('/admin/settings');
+    check('admin sees both live thresholds with explanations', r.status === 200 && r.text.includes('data-live="0.1"') && r.text.includes('Raising it') && r.text.includes('Lowering it'));
+    r = await manager.get('/admin/settings');
+    check('managers cannot open settings (403)', r.status === 403);
+    r = await agent.post('/admin/settings/thresholds', { key: 'baselineThreshold', value: '0.5' });
+    check('agents cannot change a threshold (403)', r.status === 403);
+    r = await admin.post('/admin/settings/thresholds', { key: 'baselineThreshold', value: '1.5' });
+    check('out-of-range threshold is refused', r.location.includes('msg=out_of_range_baselineThreshold'));
+    r = await admin.post('/admin/settings/thresholds', { key: 'bogus', value: '0.5' });
+    check('unknown setting is refused (400)', r.status === 400);
+    r = await admin.post('/admin/settings/thresholds', { key: 'baselineThreshold', value: '0.5' });
+    check('admin raises the baseline threshold to 0.5', r.location.includes('msg=saved_baselineThreshold'));
+    r = await admin.get('/admin/settings');
+    check('...shown as in use, set by the admin', r.text.includes('data-live="0.5"') && r.text.includes('set by Omar Haidar'));
+    r = await agent.get('/tickets/T-1002');
+    check('an older check says it used a different threshold', r.text.includes('the current setting is 50%'));
+    r = await agent.post('/tickets/T-1002/duplicates');
+    r = await agent.get('/tickets/T-1002');
+    check('re-running uses the new threshold', r.text.includes('data-threshold="0.5"'));
+    r = await manager.get('/evaluation');
+    check('the evaluation still uses the tuned thresholds', r.text.includes('Baseline (keywords + Jaccard), threshold 0.1') && !r.text.includes('threshold 0.5'));
+    r = await admin.post('/admin/settings/thresholds', { key: 'baselineThreshold', reset: '1' });
+    check('reset goes back to the tuned value', r.location.includes('msg=saved_baselineThreshold'));
+    r = await admin.post('/admin/settings/recheck');
+    check('admin re-checks all active tickets', /msg=rechecked_\d+/.test(r.location));
+    r = await agent.get('/tickets/T-1002');
+    check('...and suggestions use the tuned threshold again', r.text.includes('data-threshold="0.1"') && !r.text.includes('the current setting is'));
+
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
     check('audit logs duplicate decisions', r.text.includes('duplicate.confirm') && r.text.includes('duplicate.reject'));
     check('audit logs role changes with old and new role', r.text.includes('user.role') && r.text.includes('&#34;from&#34;:&#34;agent&#34;,&#34;to&#34;:&#34;end_user&#34;'));
+    check('audit logs threshold changes and re-checks', r.text.includes('settings.threshold') && r.text.includes('settings.recheck'));
     check('audit logs every approval decision and reassignment', ['approval.start', 'approval.approve', 'approval.reject', 'approval.reassign', 'approval.assign_head'].every((a) => r.text.includes(a)));
     check('audit logs canned response changes', ['canned.create', 'canned.update', 'canned.delete'].every((a) => r.text.includes(a)));
     check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));

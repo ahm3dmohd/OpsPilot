@@ -170,6 +170,15 @@
 @utility pill-step-waiting { @apply pill bg-sunken text-ink-soft; }
 @utility pill-step-skipped { @apply pill bg-sunken text-muted; }
 @utility pill-role { @apply pill bg-brand-soft text-brand-ink; }
+/* Duplicate score bar: fill = score, tick = threshold. */
+@utility score-bar { @apply relative h-2 flex-1 overflow-visible rounded-full bg-sunken; }
+@utility score-fill { @apply block h-full rounded-full bg-brand; }
+@utility score-threshold { @apply absolute -top-1 h-4 w-0.5 -translate-x-1/2 bg-ink; }
+/* Which method(s) found a suggestion: text labels, colour only helps. */
+@utility agree-tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium; }
+@utility agree-tag-both { @apply agree-tag bg-ok-soft text-ok; }
+@utility agree-tag-ai { @apply agree-tag bg-brand-soft text-brand-ink; }
+@utility agree-tag-baseline { @apply agree-tag bg-info-soft text-info; }
 /* Ticket type: icon + text, never colour alone. */
 @utility pill-type-incident { @apply pill border border-danger/30 bg-surface text-danger; }
 @utility pill-type-service_request { @apply pill border border-brand/30 bg-surface text-brand-ink; }

@@ -67,7 +67,7 @@
           <tbody>
             <% s.sweep.forEach(function(m) { var current = m.threshold === s.threshold; %>
               <tr class="<%= current ? 'bg-brand-soft font-semibold text-brand-ink' : '' %>">
-                <td class="tabular-nums"><%= m.threshold.toFixed(2) %><%= current ? ' (in use)' : '' %></td>
+                <td class="tabular-nums"><%= m.threshold.toFixed(2) %><%= current ? ' (tuned)' : '' %></td>
                 <td class="text-right tabular-nums"><%= pct(m.precision) %></td>
                 <td class="text-right tabular-nums"><%= pct(m.recall) %></td>
                 <td class="text-right tabular-nums"><%= m.f1.toFixed(2) %></td>

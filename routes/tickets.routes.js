@@ -3,7 +3,7 @@ const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
 const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, TICKET_TYPES, TYPE_LABELS, canTransition, hasManagerRights } = require('../lib/constants');
-const { detectDuplicates } = require('../lib/duplicates');
+const { detectDuplicates, aiThreshold, baselineThreshold } = require('../lib/duplicates');
 const { suggestCategory, suggestAssignee, agentWorkloads } = require('../lib/categorize');
 const { slaFor, timeInStatus } = require('../lib/sla');
 const assistant = require('../lib/assistant');
@@ -211,6 +211,7 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     // Duplicate results, assignee suggestion and workloads are staff-only:
     // they reveal other people's tickets.
     showDuplicates: staff,
+    liveThresholds: { ai: aiThreshold(), baseline: baselineThreshold() },
     // Internal notes are only ever loaded for staff - the requester's page
     // never has them in hand, so no template mistake can leak them.
     internalNotes: staff ? await store.listInternalNotes(ticket.ticketId) : [],

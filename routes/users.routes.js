@@ -6,6 +6,9 @@ const { ROLES } = require('../lib/constants');
 const { changeRole } = require('../lib/roles');
 const org = require('../lib/org');
 const approvals = require('../lib/approvals');
+const settings = require('../lib/settings');
+const duplicates = require('../lib/duplicates');
+const decisions = require('../lib/duplicateDecisions');
 const { logAction } = require('../lib/activity');
 
 // ---- User & role management (admins only, mounted at /admin) ----
@@ -98,6 +101,55 @@ router.post('/approvals/:id/reassign', requireRole('admin'), asyncHandler(async 
     ticketId: result.step.ticketId, step: result.step.order, from: result.from, to: result.step.approverEmail,
   });
   res.redirect('/admin/approvals?msg=reassigned');
+}));
+
+// ---- Settings: live duplicate-detection thresholds ----
+// Changing them affects NEW checks only (and "Re-check active tickets");
+// the evaluation page keeps the tuned values, see lib/evaluation.js.
+const THRESHOLDS = {
+  aiThreshold: { min: 0.5, max: 0.99, tuned: () => duplicates.tunedAiThreshold(), live: () => duplicates.aiThreshold() },
+  baselineThreshold: { min: 0.01, max: 0.9, tuned: () => duplicates.tunedBaselineThreshold(), live: () => duplicates.baselineThreshold() },
+};
+
+router.get('/settings', requireRole('admin'), asyncHandler(async (req, res) => {
+  const [stats, users] = await Promise.all([decisions.stats(), store.listUsers()]);
+  const nameOf = (email) => (users.find((u) => u.email === email) || {}).name || email;
+  const view = Object.fromEntries(Object.entries(THRESHOLDS).map(([key, t]) => {
+    const changed = settings.info(key);
+    return [key, { ...t, tuned: t.tuned(), live: t.live(), changed: changed ? { ...changed, byName: nameOf(changed.updatedByEmail) } : null }];
+  }));
+  const rate = (label) => stats.rows.find((r) => r.label === label);
+  res.render('admin-settings', {
+    t: view,
+    feedback: { ai: rate('Flagged by AI'), baseline: rate('Flagged by baseline') },
+    aiModel: require('../lib/embeddings').modelLabel(),
+    flash: req.query.msg ? String(req.query.msg) : null,
+  });
+}));
+
+router.post('/settings/thresholds', requireRole('admin'), asyncHandler(async (req, res) => {
+  const key = String(req.body.key || '');
+  const t = THRESHOLDS[key];
+  if (!t) return res.status(400).send('Unknown setting');
+  const from = t.live();
+  if (req.body.reset === '1') {
+    await settings.clear(key);
+  } else {
+    const value = Math.round(parseFloat(req.body.value) * 100) / 100;
+    if (Number.isNaN(value) || value < t.min || value > t.max) return res.redirect(`/admin/settings?msg=out_of_range_${key}`);
+    await settings.set(key, value, req.session.user);
+  }
+  await logAction(req.session.user, 'settings.threshold', { key, from, to: t.live() });
+  res.redirect(`/admin/settings?msg=saved_${key}`);
+}));
+
+// Re-runs both methods on every active ticket with the live thresholds,
+// so existing suggestions match a changed setting.
+router.post('/settings/recheck', requireRole('admin'), asyncHandler(async (req, res) => {
+  const active = (await store.listTickets({})).filter((t) => ['Pending Approval', 'Open', 'In Progress'].includes(t.status) && !t.mergedInto);
+  for (const t of active) await duplicates.detectDuplicates(t.ticketId);
+  await logAction(req.session.user, 'settings.recheck', { tickets: active.length });
+  res.redirect(`/admin/settings?msg=rechecked_${active.length}`);
 }));
 
 module.exports = router;

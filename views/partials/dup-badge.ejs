@@ -3,7 +3,7 @@
   <% var ai = t.duplicates.ai, kw = t.duplicates.baseline; %>
   <% if (ai.matches.length || kw.matches.length) { %>
     <span class="inline-flex items-center gap-1 rounded border border-dashed border-caution/60 px-1.5 text-xs text-caution" title="Possible duplicates - AI method: <%= ai.status === 'ok' ? ai.matches.length : ai.status %>, keyword baseline: <%= kw.matches.length %>">
-      <%- icon('copy', 'size-3') %> Dup? AI <%= ai.status === 'ok' ? ai.matches.length : '–' %> &middot; KW <%= kw.matches.length %>
+      <%- icon('copy', 'size-3') %> Possible duplicate: AI <%= ai.status === 'ok' ? ai.matches.length : '–' %> &middot; keywords <%= kw.matches.length %>
     </span>
   <% } %>
 <% } %>

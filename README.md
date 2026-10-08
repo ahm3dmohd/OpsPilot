@@ -163,9 +163,22 @@ are stored side by side on the ticket (`duplicates.ai` and
 | Keeps | top 5 above threshold | top 5 above threshold |
 
 - **Who sees it:** agents and managers get a "Possible duplicates" panel on
-  the ticket page and a `Dup? AI n · KW n` badge in the queue and ticket
+  the ticket page and a `Possible duplicate: AI n · keywords n` badge in the queue and ticket
   lists. End users never see it, because it reveals other people's
   tickets.
+- **Explained on screen:** each suggestion shows its score as a labelled
+  percentage and bar (meaning similarity for the AI, keyword overlap for
+  the baseline) with a tick at the threshold, and a sentence like
+  "Suggested because meaning similarity (93%) is above the threshold
+  (88%)". A summary line says which tickets both methods found, which only
+  the AI found (what the baseline missed) and which only the baseline
+  found.
+- **Live thresholds** (`/admin/settings`, admins): view and change each
+  method's threshold, with what raising/lowering it does and the agents'
+  real confirmation rate. It affects new checks (and "Re-check active
+  tickets"); stored results say which threshold they used. The evaluation
+  page and `npm run evaluate` always use the TUNED thresholds, so the
+  reported numbers can't drift.
 - **No API key:** the AI side records `skipped` and returns null instead of
   throwing. The baseline still runs and ticket creation is unaffected.
 - **API errors:** a bad key, an outage or a timeout (10s limit) are
@@ -408,11 +421,11 @@ routes/
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
   canned.routes.js         canned responses: list, create, edit, delete
-  users.routes.js          admin: users, roles, departments, open approvals (mounted at /admin)
+  users.routes.js          admin: users, roles, departments, open approvals, settings (mounted at /admin)
   approvals.routes.js      My approvals: list, approve, reject
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department, ApprovalStep
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department, ApprovalStep, Setting
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
@@ -424,6 +437,7 @@ lib/
   roles.js                 role changes with the self / last-admin safeguards
   org.js                   department / line manager / head edits with validation
   approvals.js             service-request approval chain, skips, decisions, reassignment
+  settings.js              admin-changeable settings (live thresholds), cached in memory
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval
