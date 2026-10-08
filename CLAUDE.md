@@ -53,8 +53,9 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 
 ## Still open
 
-- Real MongoDB mode is only verified by review + simulation; run the
-  TEST_MONGODB_URI test above on a machine with MongoDB.
+- Real MongoDB mode passes the full test suite (local MongoDB 8.3). The
+  owner's DB is named `OpsPilot` (capital O and P); a lowercase name in
+  MONGODB_URI fails on Windows and the app silently falls back to mock mode.
 - Known gaps: no CSRF tokens, in-memory session store, no password reset.
 - Built: internal notes, confirm/reject duplicates + merge (/admin/duplicate-stats),
   canned responses (/canned).

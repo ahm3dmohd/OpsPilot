@@ -324,11 +324,15 @@ write never blocks the user's action.
 - **OpenAI support is coded but untested here**: `api.openai.com` is
   blocked in the development environment. Its threshold of 0.82 is
   uncalibrated; run `npm run evaluate` with an OpenAI key to tune it.
-- **MongoDB mode was verified by code review and a simulated round-trip,
-  not a live database**: MongoDB downloads are blocked in the development
-  environment. Verify it yourself with
-  `TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test`.
-  That command **wipes** the database you point it at.
+- **MongoDB mode** has been tested on a local MongoDB 8.3 server: the full
+  `npm test` suite passes against it. Re-check with
+  `TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test`;
+  that command **wipes** the database you point it at.
+- **If MongoDB can't be reached at startup, the app falls back to mock
+  mode** and only says so in the server log. Check the first log line says
+  "MongoDB connected". On Windows, database names are case-insensitive:
+  if `OpsPilot` exists, `MONGODB_URI=.../opspilot` fails ("db already
+  exists with different case"), so match the existing name's case.
 
 ## Project structure
 
