@@ -115,6 +115,8 @@ Admins (new) can do everything a manager can, plus the rows marked admin.
 | Change users' roles (`/admin/users`) | ❌ | ❌ | ❌ admin only |
 | Set departments, line managers, department heads | ❌ | ❌ | ❌ admin only |
 | Re-route a ticket to another department | ❌ | ✅ | ✅ |
+| Approve / reject a service request | only the designated approver of the current step (line manager or department head, any role) | | |
+| Reassign an open approval step (`/admin/approvals`) | ❌ | ❌ | ❌ admin only |
 | Notifications | own | own | own |
 | Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
 | CSV export, AI evaluation page, duplicate-decision stats, audit log | ❌ | ❌ | ✅ |
@@ -133,6 +135,9 @@ rotate it if it leaks. The app refuses to start without it when
 
 ## Ticket workflow
 
+- Service requests start as `Pending Approval` and become `Open` when the
+  last approver approves, or `Rejected` (final). Only the approval
+  workflow makes those moves; staff can't.
 - Status: `Open` → `In Progress` → `Resolved` → `Closed`. Moves go forward
   one step at a time; a `Resolved` ticket can be re-opened to
   `In Progress`; `Closed` is final. Rules live in `lib/constants.js` and
@@ -285,6 +290,28 @@ as the seed tickets.
   a `user.role` entry in the audit log (who, whom, old and new role, when).
   For a database seeded before admins existed, `npm run make-admin --
   <email>` promotes an existing user.
+- **Approval workflow (service requests only)** (`lib/approvals.js`):
+  line manager → head of the requester's department → head of the target
+  department (if different) → `Open` in the target department's queue.
+  Each step is an `ApprovalStep` record (ticket, step, approver, decision,
+  comment, time, reassignments), including skipped steps and why.
+  - No line manager → that step is skipped.
+  - Nobody approves their own request: a step whose approver is the
+    requester is skipped; giving a step to the requester is refused.
+  - The same person isn't asked twice (e.g. line manager who is also the
+    head); same department → the target-head step is skipped.
+  - No department head, or a requester without a department → the step
+    waits unassigned until an admin assigns someone or the department
+    gets a head. It is never skipped silently.
+  - Approver changed role, moved or left → `/admin/approvals` flags the
+    step and admins reassign it; the new approver is notified.
+  - Only the designated approver can decide (server check, 403 otherwise),
+    once (conditional update). Rejecting needs a reason, which the
+    requester sees and is notified of.
+  - **My approvals** (`/approvals`, badge in the nav) lists what's waiting
+    for you with Approve/Reject; the ticket page shows the whole chain.
+  - The SLA clock starts at approval ("SLA not started" until then), and
+    pending requests stay out of the agent queue and can't be claimed.
 - **Ticket type: Incident vs Service request**: `/tickets/new` first asks
   which one ("something is broken" / "I need something new"), then shows
   a form for that type. Incidents ask what's happening and offer KB quick
@@ -381,10 +408,11 @@ routes/
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
   canned.routes.js         canned responses: list, create, edit, delete
-  users.routes.js          admin: users, roles, departments (mounted at /admin)
+  users.routes.js          admin: users, roles, departments, open approvals (mounted at /admin)
+  approvals.routes.js      My approvals: list, approve, reject
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
-models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department
+models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse, Department, ApprovalStep
 lib/
   store.js                 data access layer - the only mock-vs-DB branch
   constants.js             roles, statuses, priorities, categories, allowed status moves
@@ -395,6 +423,7 @@ lib/
   duplicateDecisions.js    confirm (merge) / reject a suggested pair, decision stats
   roles.js                 role changes with the self / last-admin safeguards
   org.js                   department / line manager / head edits with validation
+  approvals.js             service-request approval chain, skips, decisions, reassignment
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval

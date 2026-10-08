@@ -77,11 +77,13 @@ app.use(async (req, res, next) => {
   res.locals.managerRights = hasManagerRights(req.session.user);
   res.locals.currentPath = req.path;
   res.locals.unreadCount = 0;
+  res.locals.approvalCount = 0;
   // Unread badge for the nav bar. A failure here (e.g. DB hiccup) just
   // hides the badge rather than breaking the page.
   if (req.session.user && store.getMode()) {
     try {
       res.locals.unreadCount = await store.countUnreadNotifications(req.session.user.email);
+      res.locals.approvalCount = await store.countApprovalSteps({ approverEmail: req.session.user.email, status: 'pending' });
     } catch (err) {
       console.error('Unread count failed:', err.message);
     }
@@ -153,6 +155,7 @@ app.use('/kb', require('./routes/kb.routes'));
 app.use('/notifications', require('./routes/notifications.routes'));
 app.use('/canned', require('./routes/canned.routes'));
 app.use('/admin', require('./routes/users.routes'));
+app.use('/approvals', require('./routes/approvals.routes'));
 
 // ---- 404 ----
 app.use((req, res) => {

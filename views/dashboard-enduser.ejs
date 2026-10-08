@@ -17,14 +17,14 @@
 <% } else { %>
   <section class="panel mt-6 overflow-hidden">
     <% tickets.forEach(function(t) { %>
-      <% var open = t.status === 'Open' || t.status === 'In Progress'; %>
+      <% var open = t.status === 'Open' || t.status === 'In Progress' || t.status === 'Pending Approval'; %>
       <a href="/tickets/<%= t.ticketId %>" class="strip strip-<%= slug(t.priority) %> <%= open ? '' : 'strip-closed' %> sm:grid-cols-[5.5rem_1fr_auto]">
         <span class="callsign"><%= t.ticketId %></span>
         <span class="min-w-0">
           <span class="block truncate font-medium text-ink"><%= t.title %></span>
           <span class="mt-0.5 flex flex-wrap gap-x-3 text-[13px] text-muted">
             <span><%= t.category %></span>
-            <span><%= t.assigneeName ? t.assigneeName + ' is on it' : 'Waiting for an agent' %></span>
+            <span><%= t.status === 'Pending Approval' ? 'Waiting for approval' : t.status === 'Rejected' ? 'Not approved' : t.assigneeName ? t.assigneeName + ' is on it' : 'Waiting for an agent' %></span>
             <span title="<%= fullDate(t.updatedAt) %>">updated <%= timeAgo(t.updatedAt) %></span>
           </span>
         </span>

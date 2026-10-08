@@ -1,0 +1,56 @@
+<%- include('partials/layout-top', { title: 'Open approvals' }) %>
+<% var flashes = { reassigned: 'Approver changed. If the step was waiting for a decision, the new approver has been notified.' };
+   var errors = {
+     own_request: "Nobody can approve their own request. Choose someone else.",
+     bad_user: "That person isn't a user.",
+     unchanged: 'That person is already the approver.',
+     not_open: 'That step has already been decided.'
+   };
+   var problems = steps.filter(function(s) { return s.problem; }).length; %>
+
+<h1>Open approvals</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">Every approval step of a service request that hasn't been decided yet. Reassign a step when its approver changed role, moved, or left, or when it has no approver at all.</p>
+<% if (flash && flashes[flash]) { %><p class="notice-ok mt-4" role="status"><%= flashes[flash] %></p><% } %>
+<% if (flash && errors[flash]) { %><p class="notice-error mt-4" role="alert"><%= errors[flash] %></p><% } %>
+<% if (problems) { %><p class="notice-info mt-4"><%= problems %> step<%= problems === 1 ? ' needs' : 's need' %> attention.</p><% } %>
+
+<% if (steps.length === 0) { %>
+  <div class="panel panel-body mt-6">
+    <p class="font-medium">No open approvals.</p>
+    <p class="mt-1 text-sm text-muted">Service requests waiting for a decision will appear here.</p>
+  </div>
+<% } else { %>
+  <section class="panel mt-6 overflow-x-auto">
+    <table class="data-table">
+      <thead><tr><th>Request</th><th>Step</th><th>State</th><th>Approver</th></tr></thead>
+      <tbody>
+        <% steps.forEach(function(s) { var nameOf = function(e) { var u = users.find(function(x) { return x.email === e; }); return u ? u.name : e; }; %>
+          <tr data-open-step="<%= s.id %>" data-ticket-id="<%= s.ticketId %>">
+            <td>
+              <a href="/tickets/<%= s.ticketId %>" class="callsign text-brand"><%= s.ticketId %></a>
+              <span class="block"><%= s.ticket.title %></span>
+              <span class="block text-xs text-muted">From <%= s.ticket.requesterName %>, to <%= s.ticket.department || 'IT' %></span>
+            </td>
+            <td>Step <%= s.order %>: <%= KIND_LABELS[s.kind] %></td>
+            <td><span class="pill-step-<%= s.status %>"><%= s.status === 'pending' ? 'Waiting for decision' : 'Not reached yet' %></span></td>
+            <td>
+              <% if (s.problem) { %><p class="mb-2 flex items-start gap-1 text-sm text-caution" data-problem><%- icon('triangle-alert', 'size-4 shrink-0 mt-0.5') %> <%= s.problem %></p><% } %>
+              <form action="/admin/approvals/<%= s.id %>/reassign" method="POST" class="flex flex-wrap items-center gap-2">
+                <label class="sr-only" for="appr-<%= s.id %>">Approver for step <%= s.order %> of <%= s.ticketId %></label>
+                <select class="input w-auto py-1.5" id="appr-<%= s.id %>" name="approverEmail">
+                  <% if (!s.approverEmail) { %><option value="">Choose an approver</option><% } %>
+                  <% users.forEach(function(u) { if (u.email === s.ticket.requesterEmail) return; %>
+                    <option value="<%= u.email %>" <%= u.email === s.approverEmail ? 'selected' : '' %>><%= u.name %><%= u.email === s.expected && s.expected !== s.approverEmail ? ' (per org chart)' : '' %></option>
+                  <% }) %>
+                </select>
+                <button type="submit" class="btn-secondary btn-sm">Reassign</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </section>
+<% } %>
+
+<%- include('partials/layout-bottom') %>

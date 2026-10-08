@@ -5,7 +5,7 @@ const { requireLogin, asyncHandler } = require('../middleware/auth');
 const { STATUSES, PRIORITIES, CATEGORIES, hasManagerRights } = require('../lib/constants');
 const { withSla, applyFilters, stat } = require('../lib/ticketFilters');
 
-const SLA_ORDER = { breached: 0, at_risk: 1, ok: 2, met: 3 };
+const SLA_ORDER = { breached: 0, at_risk: 1, ok: 2, met: 3, waiting: 4 };
 
 router.get('/', requireLogin, (req, res) => res.redirect('/dashboard'));
 

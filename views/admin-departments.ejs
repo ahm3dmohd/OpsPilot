@@ -32,7 +32,7 @@
                 </select>
                 <button type="submit" class="btn-secondary btn-sm">Save</button>
               </form>
-              <% if (!d.headEmail) { %><span class="mt-1 block text-xs text-caution">No head: service requests needing this approval wait until one is set.</span><% } %>
+              <% if (!d.headEmail) { %><span class="mt-1 block text-xs text-caution">No head: service requests needing this approval wait until one is set (or an admin assigns someone on Open approvals).</span><% } %>
             </td>
           </tr>
         <% }) %>

@@ -1,0 +1,17 @@
+<%# Approve / Reject forms for one pending step. Expects: step, returnTo ('ticket' | 'list'). %>
+<div class="grid gap-4 border-t border-line bg-sunken px-5 py-4 sm:grid-cols-2" data-approval-actions="<%= step.id %>">
+  <form action="/approvals/<%= step.id %>/approve" method="POST" class="space-y-2">
+    <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+    <label class="field">Comment <span class="font-normal text-muted">(optional)</span>
+      <textarea class="input" name="comment" rows="2" maxlength="1000"></textarea>
+    </label>
+    <button type="submit" class="btn-primary w-full"><%- icon('circle-check') %> Approve</button>
+  </form>
+  <form action="/approvals/<%= step.id %>/reject" method="POST" class="space-y-2">
+    <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+    <label class="field">Reason for rejecting <span class="font-normal text-danger">(required)</span>
+      <textarea class="input" name="comment" rows="2" required maxlength="1000" placeholder="The requester sees this"></textarea>
+    </label>
+    <button type="submit" class="btn-danger w-full"><%- icon('circle-x') %> Reject</button>
+  </form>
+</div>

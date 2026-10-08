@@ -19,6 +19,7 @@ const InternalNote = require('../models/InternalNote');
 const DuplicateDecision = require('../models/DuplicateDecision');
 const CannedResponse = require('../models/CannedResponse');
 const Department = require('../models/Department');
+const ApprovalStep = require('../models/ApprovalStep');
 const { demoUsers, seedDepartments, seedTickets, seedArticles, seedCannedResponses, DEMO_PASSWORD } = require('../lib/seedData');
 
 async function seed() {
@@ -51,6 +52,7 @@ async function seed() {
   await CannedResponse.deleteMany({});
   await CannedResponse.insertMany(seedCannedResponses());
   await Department.deleteMany({});
+  await ApprovalStep.deleteMany({});
   await Department.insertMany(seedDepartments());
   console.log(`Seeded ${articles.length} knowledge-base articles.`);
   console.log(`Seeded ${tickets.length} tickets. Embeddings and duplicate checks run when the server starts.`);

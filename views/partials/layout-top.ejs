@@ -26,6 +26,10 @@
           <a href="/tickets/new" class="nav-link" <%- on('/tickets/new') %>><%- icon('plus') %> New ticket</a>
           <a href="/help" class="nav-link" <%- on('/help') %>><%- icon('life-buoy') %> Get help</a>
         <% } %>
+        <a href="/approvals" class="nav-link" <%- on('/approvals') %>>
+          <%- icon('stamp') %> My approvals
+          <% if (approvalCount) { %><span class="ml-auto rounded-full bg-caution px-1.5 text-xs font-semibold text-white approval-count" aria-label="<%= approvalCount %> waiting"><%= approvalCount %></span><% } %>
+        </a>
         <a href="/kb" class="nav-link" <%- on('/kb') %>><%- icon('book-open') %> Knowledge base</a>
         <% if (currentUser.role !== 'end_user') { %>
           <a href="/canned" class="nav-link" <%- on('/canned') %>><%- icon('message-square-text') %> Canned responses</a>
@@ -45,6 +49,7 @@
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Administration</p>
           <a href="/admin/users" class="nav-link" <%- on('/admin/users') %>><%- icon('users') %> Users &amp; roles</a>
           <a href="/admin/departments" class="nav-link" <%- on('/admin/departments') %>><%- icon('building-2') %> Departments</a>
+          <a href="/admin/approvals" class="nav-link" <%- on('/admin/approvals') %>><%- icon('route') %> Open approvals</a>
         <% } %>
       </nav>
 

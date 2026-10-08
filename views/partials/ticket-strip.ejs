@@ -1,7 +1,7 @@
 <%# One ticket as a flight strip. Expects: t (ticket with .sla), and
     optional showRequester / showAssignee (default true). The whole strip is
     one link to the ticket. %>
-<% var clock = slaClock(t.sla); var closed = t.status === 'Resolved' || t.status === 'Closed'; %>
+<% var clock = slaClock(t.sla); var closed = t.status === 'Resolved' || t.status === 'Closed' || t.status === 'Rejected'; %>
 <a href="/tickets/<%= t.ticketId %>" class="strip strip-<%= slug(t.priority) %> <%= closed ? 'strip-closed' : '' %>" data-ticket="<%= t.ticketId %>" data-sla="<%= t.sla.overall %>">
   <span class="callsign"><%= t.ticketId %></span>
   <span class="min-w-0">
@@ -23,7 +23,7 @@
     <span class="pill-<%= slug(t.status) %> pill-status-<%= slug(t.status) %>"><%= t.status %></span>
   </span>
   <span class="col-start-2 text-[13px] sm:col-start-auto sm:text-right">
-    <span class="block font-medium tabular-nums sla-<%= t.sla.overall %> <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink-soft', met: 'text-ok' }[clock.state] %>"><%= clock.text %></span>
+    <span class="block font-medium tabular-nums sla-<%= t.sla.overall %> <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink-soft', met: 'text-ok', waiting: 'text-muted' }[clock.state] %>"><%= clock.text %></span>
     <% if (clock.label) { %><span class="block text-xs text-muted"><%= clock.label %></span><% } %>
   </span>
 </a>

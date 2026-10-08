@@ -139,7 +139,9 @@ async function main() {
     check('logged-out user is sent to /login', r.status === 302 && r.location === '/login');
     r = await anon.post('/login', { email: 'agent@opspilot.test', password: 'wrong' });
     check('wrong password is rejected (401)', r.status === 401);
-    for (const [c, email] of [[endUser, 'enduser'], [agent, 'agent'], [agent2, 'agent2'], [manager, 'manager'], [admin, 'admin']]) {
+    const lead = client(); // Khalid: Erin's line manager (Finance)
+    const finhead = client(); // Layla: head of Finance, Khalid's manager
+    for (const [c, email] of [[endUser, 'enduser'], [agent, 'agent'], [agent2, 'agent2'], [manager, 'manager'], [admin, 'admin'], [lead, 'lead'], [finhead, 'finhead']]) {
       r = await c.login(`${email}@opspilot.test`);
       check(`${email} can log in`, r.status === 302 && r.location === '/dashboard');
     }
@@ -201,6 +203,9 @@ async function main() {
       [manager, 'POST', '/admin/departments', 'manager -> add a department'],
       [agent, 'POST', '/admin/departments/IT/head', 'agent -> set department head'],
       [endUser, 'POST', '/tickets/T-1003/department', 'end user -> re-route ticket'],
+      [manager, 'GET', '/admin/approvals', 'manager -> open approvals (admin only)'],
+      [agent, 'POST', '/admin/approvals/1/reassign', 'agent -> reassign an approval'],
+      [lead, 'GET', '/tickets/T-1001', "line manager -> a ticket they don't approve"],
       [endUser, 'GET', '/canned', 'end user -> canned responses'],
       [endUser, 'POST', '/canned', 'end user -> create canned response'],
       [endUser, 'GET', '/canned/1/edit', 'end user -> edit canned response form'],
@@ -601,12 +606,135 @@ async function main() {
     r = await manager.get('/reports/tickets.csv?department=FAC');
     check('CSV export has a department column and honours the filter', r.text.includes('"department"') && r.text.includes('"T-1005"') && r.text.trim().split('\r\n').length === Number(facCount) + 1);
 
+    console.log('\nApproval workflow (service requests)');
+    // Erin (Finance) -> line manager Khalid -> head of Finance Layla -> head of the target department.
+    const createRequest = async (c, department, title) => {
+      const res = await c.post('/tickets', { type: 'service_request', department, title, description: `${title} (details)`, justification: 'Needed for my job', priority: 'Medium' });
+      return (res.location.match(/T-\d+/) || [])[0];
+    };
+    // Step ID of the pending step on a ticket, from the approver's ticket page.
+    const pendingStep = async (c, ticketId) => ((await c.get(`/tickets/${ticketId}`)).text.match(/data-approval-actions="([^"]+)"/) || [])[1];
+    const stepStatuses = (html) => [...html.matchAll(/data-step="(\d)" data-step-status="(\w+)"/g)].map((m) => `${m[1]}:${m[2]}`).join(' ');
+
+    const sr1 = await createRequest(endUser, 'IT', 'New laptop with 32GB RAM');
+    r = await endUser.get(`/tickets/${sr1}`);
+    check('service request starts Pending Approval with the full chain', r.text.includes('pill-status-pending-approval') && stepStatuses(r.text) === '1:pending 2:waiting 3:waiting', stepStatuses(r.text));
+    check('requester sees who approves each step', r.text.includes('Khalid Mansoor') && r.text.includes('Layla Nasser') && r.text.includes('Mona Saleh'));
+    check('its SLA has not started', r.text.includes('SLA not started') && r.text.includes('starts when approved'));
+    r = await agent.get('/dashboard');
+    check("it is NOT in the agents' open queue", !r.text.includes(`data-ticket="${sr1}"`));
+    r = await agent.post(`/tickets/${sr1}/claim`);
+    check('agents cannot claim it before approval', r.location.includes('msg=not_approved'));
+    r = await lead.get('/approvals');
+    check("it is in the line manager's My approvals, with a nav badge", r.text.includes(`data-ticket-id="${sr1}"`) && r.text.includes('approval-count'));
+    r = await finhead.get('/approvals');
+    check('...but not yet in the head of department\'s', !r.text.includes(`data-ticket-id="${sr1}"`));
+    r = await endUser.get('/notifications');
+    r = await lead.get('/notifications');
+    check('line manager is notified', r.text.includes(`request ${sr1}`) && r.text.includes('needs your approval'));
+    const s1 = await pendingStep(lead, sr1);
+    check('line manager sees Approve/Reject on the ticket page', !!s1);
+    for (const [c, who] of [[finhead, 'a later approver'], [agent, 'an agent'], [endUser, 'the requester'], [admin, 'an admin']]) {
+      r = await c.post(`/approvals/${s1}/approve`, {});
+      check(`${who} cannot decide the line manager's step (403)`, r.status === 403, `(got ${r.status})`);
+    }
+    r = await lead.post(`/approvals/${s1}/reject`, { comment: '   ' });
+    check('rejecting without a reason is refused', r.location.includes('msg=reason_required'));
+    r = await lead.post(`/approvals/${s1}/approve`, { comment: 'Fine by me', returnTo: 'list' });
+    check('line manager approves', r.location.startsWith('/approvals?msg=approved'));
+    r = await lead.post(`/approvals/${s1}/approve`, {});
+    check('the same step cannot be decided twice', r.location.includes('msg=not_pending'));
+    r = await finhead.get('/notifications');
+    check('head of department is notified next', r.text.includes(`request ${sr1}`));
+    const s2 = await pendingStep(finhead, sr1);
+    r = await finhead.post(`/approvals/${s2}/approve`, {});
+    check('head of requester\'s department approves', r.location.includes('msg=approved'));
+    r = await endUser.get(`/tickets/${sr1}`);
+    check('now waiting for the target department\'s head', stepStatuses(r.text) === '1:approved 2:approved 3:pending' && r.text.includes('Fine by me'));
+    const s3 = await pendingStep(manager, sr1);
+    r = await manager.post(`/approvals/${s3}/approve`, {});
+    check('head of IT (the target) approves', r.location.includes('msg=approved'));
+    r = await endUser.get(`/tickets/${sr1}`);
+    check('approved: Open, all steps approved, SLA running', r.text.includes('pill-status-open') && stepStatuses(r.text) === '1:approved 2:approved 3:approved' && !r.text.includes('SLA not started'));
+    r = await endUser.get('/notifications');
+    check('requester is told it was approved', r.text.includes(`Your request ${sr1}`) && r.text.includes('was approved'));
+    r = await agent.get('/dashboard');
+    check("it is now in the agents' open queue", r.text.includes(`data-ticket="${sr1}"`));
+
+    const sr2 = await createRequest(endUser, 'IT', 'Second monitor');
+    const r2 = await pendingStep(lead, sr2);
+    r = await lead.post(`/approvals/${r2}/reject`, { comment: 'Budget is <b>frozen</b> this quarter' });
+    check('line manager rejects with a reason', r.location.includes('msg=request_rejected'));
+    r = await endUser.get(`/tickets/${sr2}`);
+    check('rejected: status Rejected, later steps skipped, reason shown escaped',
+      r.text.includes('pill-status-rejected') && stepStatuses(r.text) === '1:rejected 2:skipped 3:skipped' && r.text.includes('Budget is &lt;b&gt;frozen&lt;/b&gt;'));
+    r = await endUser.get('/notifications');
+    check('requester is notified with the reason', r.text.includes(`did not approve your request ${sr2}`) && r.text.includes('frozen'));
+    r = await agent.post(`/tickets/${sr2}/claim`);
+    check('a rejected request cannot be claimed', r.location.includes('msg=not_approved'));
+
+    // Khalid (manager: Layla) asks Finance: Layla is both his line manager
+    // and his department head, and Finance is his own department.
+    const sr3 = await createRequest(lead, 'FIN', 'Access to the budget workbook');
+    r = await finhead.post(`/approvals/${await pendingStep(finhead, sr3)}/approve`, {});
+    r = await lead.get(`/tickets/${sr3}`);
+    check('same person is not asked twice, same department skips the target head -> Open',
+      r.text.includes('pill-status-open') && stepStatuses(r.text) === '1:approved 2:skipped 3:skipped' && r.text.includes('Same person already approved at step 1'));
+
+    // Layla (no line manager, head of Finance) asks Finance: every step is
+    // her own or doesn't apply.
+    const sr4 = await createRequest(finhead, 'FIN', 'New team mailbox');
+    r = await finhead.get(`/tickets/${sr4}`);
+    check('head requesting for own department: all steps skipped, straight to the queue',
+      r.text.includes('pill-status-open') && stepStatuses(r.text) === '1:skipped 2:skipped 3:skipped' && r.text.includes('has no line manager') && r.text.includes('nobody approves their own request'));
+    const sr5 = await createRequest(finhead, 'IT', 'Tableau licence');
+    r = await finhead.get(`/tickets/${sr5}`);
+    check("head requesting from IT: only IT's head approves", stepStatuses(r.text) === '1:skipped 2:skipped 3:pending');
+
+    // HR has no head: the last step waits unassigned for an admin.
+    const sr6 = await createRequest(endUser, 'HR', 'Update my job title');
+    await lead.post(`/approvals/${await pendingStep(lead, sr6)}/approve`, {});
+    await finhead.post(`/approvals/${await pendingStep(finhead, sr6)}/approve`, {});
+    r = await endUser.get(`/tickets/${sr6}`);
+    check('department without a head: step waits unassigned (never skipped)', stepStatuses(r.text) === '1:approved 2:approved 3:pending' && r.text.includes('an admin will assign one'));
+    r = await admin.get('/admin/approvals');
+    const sr6Row = (new RegExp(`data-open-step="([^"]+)" data-ticket-id="${sr6}"[\\s\\S]*?</tr>`).exec(r.text) || ['', ''])
+    check('admin sees it flagged as unassigned', sr6Row[0].includes('Unassigned'));
+    r = await admin.post(`/admin/approvals/${sr6Row[1]}/reassign`, { approverEmail: 'enduser@opspilot.test' });
+    check('admin cannot give a step to the requester', r.location.includes('msg=own_request'));
+    r = await admin.post('/admin/departments/HR/head', { headEmail: 'agent2@opspilot.test' });
+    r = await agent2.get('/approvals');
+    check('setting a head for HR assigns the waiting step to them', r.text.includes(`data-ticket-id="${sr6}"`));
+    r = await agent2.post(`/approvals/${await pendingStep(agent2, sr6)}/approve`, {});
+    r = await endUser.get(`/tickets/${sr6}`);
+    check('...who approves it, and it opens in HR', r.text.includes('pill-status-open') && r.text.includes('data-department="HR"'));
+    await admin.post('/admin/departments/HR/head', { headEmail: '' });
+
+    // Approver changes mid-flow: Erin gets a new line manager.
+    const sr7 = await createRequest(endUser, 'IT', 'Adobe Acrobat Pro');
+    await admin.post('/admin/users/org', { email: 'enduser@opspilot.test', department: 'FIN', managerEmail: 'agent2@opspilot.test' });
+    r = await admin.get('/admin/approvals');
+    const sr7Row = (new RegExp(`data-open-step="([^"]+)" data-ticket-id="${sr7}"[\\s\\S]*?</tr>`).exec(r.text) || ['', ''])
+    check("admin page flags the step whose approver is no longer the line manager", sr7Row[0].includes('org chart changed') && sr7Row[0].includes('Sara Ali'));
+    r = await admin.post(`/admin/approvals/${sr7Row[1]}/reassign`, { approverEmail: 'agent2@opspilot.test' });
+    check('admin reassigns the pending step', r.location.includes('msg=reassigned'));
+    r = await lead.post(`/approvals/${sr7Row[1]}/approve`, {});
+    check('the old approver can no longer act (403)', r.status === 403);
+    r = await agent2.get('/notifications');
+    check('the new approver is notified', r.text.includes(`request ${sr7}`));
+    r = await agent2.post(`/approvals/${sr7Row[1]}/approve`, {});
+    check('the new approver can approve', r.location.includes('msg=approved'));
+    await admin.post('/admin/users/org', { email: 'enduser@opspilot.test', department: 'FIN', managerEmail: 'lead@opspilot.test' });
+    r = await endUser.get('/tickets/T-1003');
+    check('incidents have no approval panel', r.status === 200 && !r.text.includes('id="approval"'));
+
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
     check('audit logs duplicate decisions', r.text.includes('duplicate.confirm') && r.text.includes('duplicate.reject'));
     check('audit logs role changes with old and new role', r.text.includes('user.role') && r.text.includes('&#34;from&#34;:&#34;agent&#34;,&#34;to&#34;:&#34;end_user&#34;'));
+    check('audit logs every approval decision and reassignment', ['approval.start', 'approval.approve', 'approval.reject', 'approval.reassign', 'approval.assign_head'].every((a) => r.text.includes(a)));
     check('audit logs canned response changes', ['canned.create', 'canned.update', 'canned.delete'].every((a) => r.text.includes(a)));
     check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });

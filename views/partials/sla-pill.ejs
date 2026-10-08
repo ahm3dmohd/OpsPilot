@@ -1,3 +1,3 @@
 <%# Expects: sla (from lib/sla.js slaFor) %>
-<% var labels = { breached: 'SLA breached', at_risk: 'SLA at risk', ok: 'On track', met: 'SLA met' }; %>
+<% var labels = { breached: 'SLA breached', at_risk: 'SLA at risk', ok: 'On track', met: 'SLA met', waiting: 'SLA not started' }; %>
 <span class="pill-sla-<%= sla.overall %> sla-<%= sla.overall %>"><%= labels[sla.overall] %></span>

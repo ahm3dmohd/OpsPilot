@@ -1,0 +1,38 @@
+<%# Approval chain of a service request. Expects: approval ({ steps, mine }), ticket. %>
+<% var stepText = { approved: 'Approved', rejected: 'Rejected', pending: 'Waiting for decision', waiting: 'Not reached yet', skipped: 'Skipped' };
+   var stepIcon = { approved: 'circle-check', rejected: 'circle-x', pending: 'hourglass', waiting: 'circle-dashed', skipped: 'skip-forward' }; %>
+<section id="approval" class="panel overflow-hidden" aria-labelledby="approvalHeading">
+  <div class="panel-head">
+    <div>
+      <h2 id="approvalHeading">Approval</h2>
+      <p class="text-xs text-muted">
+        <% if (ticket.approvalState === 'approved') { %>Approved <span title="<%= fullDate(ticket.approvedAt) %>"><%= timeAgo(ticket.approvedAt) %></span>; it's in the <%= ticket.department || 'IT' %> queue.
+        <% } else if (ticket.approvalState === 'rejected') { %>Not approved.
+        <% } else { %>Service requests are approved before work starts.<% } %>
+      </p>
+    </div>
+  </div>
+  <% if (ticket.approvalState === 'rejected' && ticket.rejectionReason) { %>
+    <p class="notice-error mx-5 mt-4" data-rejection-reason><strong>Reason:</strong> <%= ticket.rejectionReason %></p>
+  <% } %>
+  <ol class="divide-y divide-line">
+    <% approval.steps.forEach(function(s) { %>
+      <li class="px-5 py-3" data-step="<%= s.order %>" data-step-status="<%= s.status %>">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-sm">
+            <span class="font-medium text-ink">Step <%= s.order %>: <%= s.label %></span>
+            <span class="text-ink-soft">
+              <% if (s.approverName) { %>· <%= s.approverName %><% } else if (s.status !== 'skipped') { %>· <span class="text-caution">no approver yet, an admin will assign one</span><% } %>
+            </span>
+          </p>
+          <span class="pill-step-<%= s.status %>"><%- icon(stepIcon[s.status], 'size-3') %> <%= stepText[s.status] %></span>
+        </div>
+        <% if (s.comment) { %><p class="prose-text mt-1 text-sm text-ink-soft"><%= s.status === 'rejected' ? 'Reason: ' : '' %><%= s.comment %></p><% } %>
+        <% if (s.decidedAt && (s.status === 'approved' || s.status === 'rejected')) { %><p class="mt-0.5 text-xs text-muted" title="<%= fullDate(s.decidedAt) %>"><%= timeAgo(s.decidedAt) %></p><% } %>
+      </li>
+    <% }) %>
+  </ol>
+  <% if (approval.mine) { %>
+    <%- include('approval-actions', { step: approval.mine, returnTo: 'ticket' }) %>
+  <% } %>
+</section>

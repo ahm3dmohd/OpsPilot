@@ -15,8 +15,9 @@
 
 /* Classes built from data in templates (e.g. pill-<%= priority %>) can't
    be found by the scanner, so list them here or they won't be generated. */
-@source inline("pill-{open,in-progress,resolved,closed,low,medium,high,urgent}");
-@source inline("pill-sla-{breached,at_risk,ok,met}");
+@source inline("pill-{open,in-progress,resolved,closed,pending-approval,rejected,low,medium,high,urgent}");
+@source inline("pill-step-{approved,rejected,pending,waiting,skipped}");
+@source inline("pill-sla-{breached,at_risk,ok,met,waiting}");
 @source inline("strip-{low,medium,high,urgent,closed}");
 @source inline("pill-type-{incident,service_request}");
 
@@ -151,6 +152,8 @@
 @utility pill-in-progress { @apply pill bg-caution-soft text-caution; }
 @utility pill-resolved { @apply pill bg-ok-soft text-ok; }
 @utility pill-closed { @apply pill bg-sunken text-muted; }
+@utility pill-pending-approval { @apply pill border border-dashed border-caution/60 bg-surface text-caution; }
+@utility pill-rejected { @apply pill bg-danger-soft text-danger; }
 @utility pill-low { @apply pill bg-info-soft text-info; }
 @utility pill-medium { @apply pill bg-caution-soft text-caution; }
 @utility pill-high { @apply pill bg-high-soft text-high; }
@@ -159,6 +162,13 @@
 @utility pill-sla-at_risk { @apply pill bg-caution-soft text-caution; }
 @utility pill-sla-ok { @apply pill bg-sunken text-ink-soft; }
 @utility pill-sla-met { @apply pill bg-ok-soft text-ok; }
+@utility pill-sla-waiting { @apply pill bg-sunken text-muted; }
+/* Approval step states: text always says the state, colour only helps. */
+@utility pill-step-approved { @apply pill bg-ok-soft text-ok; }
+@utility pill-step-rejected { @apply pill bg-danger-soft text-danger; }
+@utility pill-step-pending { @apply pill bg-caution-soft text-caution; }
+@utility pill-step-waiting { @apply pill bg-sunken text-ink-soft; }
+@utility pill-step-skipped { @apply pill bg-sunken text-muted; }
 @utility pill-role { @apply pill bg-brand-soft text-brand-ink; }
 /* Ticket type: icon + text, never colour alone. */
 @utility pill-type-incident { @apply pill border border-danger/30 bg-surface text-danger; }

@@ -11,6 +11,7 @@ const { logAction } = require('../lib/activity');
 const notify = require('../lib/notify');
 const filtering = require('../lib/ticketFilters');
 const decisions = require('../lib/duplicateDecisions');
+const approvals = require('../lib/approvals');
 
 const MAX_TITLE = 150;
 const MAX_DESCRIPTION = 5000;
@@ -20,19 +21,21 @@ const MAX_NOTE = 5000;
 
 const isStaff = (user) => user.role === 'agent' || hasManagerRights(user);
 
-function canView(ticket, user) {
-  return isStaff(user) || ticket.requesterEmail === user.email;
+// Staff, the requester, and anyone who is (or was) an approver on it.
+async function canView(ticket, user) {
+  if (isStaff(user) || ticket.requesterEmail === user.email) return true;
+  return (await store.countApprovalSteps({ ticketId: ticket.ticketId, approverEmail: user.email })) > 0;
 }
 
 // Loads :id and checks the current user may see it; renders 404/403 and
 // returns null otherwise.
 async function loadTicket(req, res) {
-  const ticket = await store.getTicketById(req.params.id);
+  const ticket = await store.getTicketById(String(req.params.id));
   if (!ticket) {
     res.status(404).render('404', { url: req.originalUrl });
     return null;
   }
-  if (!canView(ticket, req.session.user)) {
+  if (!(await canView(ticket, req.session.user))) {
     res.status(403).render('403', { title: 'Access denied' });
     return null;
   }
@@ -76,10 +79,11 @@ async function validateForm(form) {
 // ---- Filtered ticket list (agents + managers) ----
 // Every number on the manager dashboard links here with its filters in
 // the query string, e.g. /tickets?state=active&sla=breached.
+const SLA_RANK = { breached: 0, at_risk: 1, ok: 2, met: 3, waiting: 4 };
 const SORTS = {
   newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
   oldest: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-  sla: (a, b) => ({ breached: 0, at_risk: 1, ok: 2, met: 3 }[a.sla.overall] - { breached: 0, at_risk: 1, ok: 2, met: 3 }[b.sla.overall]),
+  sla: (a, b) => SLA_RANK[a.sla.overall] - SLA_RANK[b.sla.overall],
   priority: (a, b) => PRIORITIES.indexOf(b.priority) - PRIORITIES.indexOf(a.priority),
 };
 
@@ -149,7 +153,10 @@ router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
       accepted: req.body.suggestedCategory === (form.category || 'General'),
     };
   }
-  const ticket = await store.createTicket({
+  const isRequest = form.type === 'service_request';
+  let ticket = await store.createTicket({
+    status: isRequest ? 'Pending Approval' : 'Open',
+    approvalState: isRequest ? 'pending' : 'not_required',
     type: form.type,
     title: form.title,
     description: form.description,
@@ -163,7 +170,13 @@ router.post('/', requireRole('end_user'), asyncHandler(async (req, res) => {
     categorySuggestion,
   });
   await logAction(user, 'ticket.create', { ticketId: ticket.ticketId, type: ticket.type, department: ticket.department, category: ticket.category, priority: ticket.priority });
-  await notify.ticketCreated(ticket, user);
+  if (isRequest) {
+    const started = await approvals.start(ticket, user);
+    ticket = started.ticket || ticket;
+    await logAction(user, 'approval.start', { ticketId: ticket.ticketId, autoApproved: !!started.autoApproved });
+  }
+  // Urgent alerts only for tickets that are actually in a queue.
+  if (ticket.status === 'Open') await notify.ticketCreated(ticket, user);
 
   // Duplicate detection runs before redirecting so staff see results on
   // the first page load. It never throws, and its embeddings call has a
@@ -205,6 +218,7 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
     cannedResponses: staff ? await store.listCannedResponses() : [],
     department: await store.getDepartment(ticket.department || 'IT'),
+    approval: await approvalView(ticket, user),
     departments: staff ? await store.listDepartments() : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
     agents: hasManagerRights(user) && !ticket.assigneeEmail ? await agentWorkloads() : [],
@@ -213,9 +227,25 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
   });
 }));
 
+// Steps with names, for the approval panel on the ticket page.
+async function approvalView(ticket, user) {
+  if ((ticket.type || 'incident') !== 'service_request') return null;
+  const [steps, users] = await Promise.all([store.listApprovalSteps({ ticketId: ticket.ticketId }), store.listUsers()]);
+  const nameOf = (email) => (users.find((u) => u.email === email) || {}).name || email;
+  return {
+    steps: steps.map((s) => ({ ...s, approverName: s.approverEmail ? nameOf(s.approverEmail) : null, label: approvals.KIND_LABELS[s.kind] })),
+    mine: steps.find((s) => s.status === 'pending' && s.approverEmail === user.email) || null,
+  };
+}
+
+// Only tickets in a queue can be worked on.
+const NOT_IN_QUEUE = ['Pending Approval', 'Rejected'];
+
 // ---- Agent / manager actions ----
 router.post('/:id/claim', requireRole('agent'), asyncHandler(async (req, res) => {
   const user = req.session.user;
+  const pending = await store.getTicketById(String(req.params.id));
+  if (pending && NOT_IN_QUEUE.includes(pending.status)) return res.redirect(`/tickets/${pending.ticketId}?msg=not_approved`);
   const { ticket, reason } = await store.claimTicket(req.params.id, user);
   if (reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
   if (reason === 'already_claimed') {
@@ -230,8 +260,10 @@ router.post('/:id/claim', requireRole('agent'), asyncHandler(async (req, res) =>
 // lowest-workload suggestion).
 router.post('/:id/assign', requireRole('manager'), asyncHandler(async (req, res) => {
   const user = req.session.user;
-  const agent = await store.findUserByEmail(req.body.agentEmail);
+  const agent = await store.findUserByEmail(String(req.body.agentEmail || ''));
   if (!agent || agent.role !== 'agent') return res.status(400).send('Unknown agent');
+  const pending = await store.getTicketById(String(req.params.id));
+  if (pending && NOT_IN_QUEUE.includes(pending.status)) return res.redirect(`/tickets/${pending.ticketId}?msg=not_approved`);
   const { ticket, reason } = await store.claimTicket(req.params.id, agent);
   if (reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
   if (reason === 'already_claimed') {

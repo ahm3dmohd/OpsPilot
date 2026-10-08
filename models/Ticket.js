@@ -31,6 +31,11 @@ const ticketSchema = new mongoose.Schema({
   // optional date it's needed by.
   justification: { type: String, default: null },
   neededBy: { type: Date, default: null },
+  // Approval (service requests): not_required | pending | approved | rejected.
+  // The steps themselves are in ApprovalStep.
+  approvalState: { type: String, default: 'not_required' },
+  approvedAt: { type: Date, default: null }, // SLA clocks start here for service requests
+  rejectionReason: { type: String, default: null },
   category: { type: String, default: 'General' },
   department: { type: String, default: 'IT' }, // department code the ticket is routed to
   priority: { type: String, enum: PRIORITIES, default: 'Medium' },

@@ -4,6 +4,9 @@
      already_claimed: 'Someone else claimed this ticket first.',
      bad_transition: "That status change isn't allowed from the current status.",
      changed: 'The ticket changed while you were looking at it. Check the new status and try again.',
+     not_approved: "This service request isn't approved yet, so it can't be claimed or assigned.",
+     reason_required: 'Give a reason when you reject a request. The requester sees it.',
+     not_pending: 'That approval step has already been decided or moved on.',
      not_suggested: 'That ticket is no longer a suggested duplicate of this one. The list may have changed.',
      already_decided: 'Someone already confirmed or rejected that pair.',
      already_merged: 'One of the two tickets has already been merged into another ticket.'
@@ -11,7 +14,9 @@
    var okFlashes = {
      merged: (mergedFrom || 'The newer ticket') + ' was merged into this ticket. Its description and comments are copied into the internal notes below.',
      rejected: 'Suggestion rejected. That pair will not be suggested again.',
-     rerouted: 'Department saved.'
+     rerouted: 'Department saved.',
+     approved: 'Approved. It has moved on to the next step, or to the queue if that was the last one.',
+     request_rejected: 'Rejected. The requester has been told why.'
    }; %>
 
 <a href="<%= currentUser.role === 'end_user' ? '/dashboard' : '/tickets' %>" class="inline-flex items-center gap-1.5 text-sm text-ink-soft no-underline hover:text-ink"><%- icon('arrow-left') %> <%= currentUser.role === 'end_user' ? 'My tickets' : 'All tickets' %></a>
@@ -53,6 +58,8 @@
         </dl>
       <% } %>
     </section>
+
+    <% if (approval) { %><%- include('partials/approval-panel', { approval: approval, ticket: ticket }) %><% } %>
 
     <% if (showDuplicates) { %>
       <section id="duplicates" class="panel overflow-hidden" aria-labelledby="dupHeading">
@@ -240,6 +247,10 @@
             </label>
             <button type="submit" class="btn-secondary w-full">Update status</button>
           </form>
+        <% } else if (ticket.status === 'Pending Approval') { %>
+          <p class="text-sm text-muted">Waiting for approval. It joins the queue once approved.</p>
+        <% } else if (ticket.status === 'Rejected') { %>
+          <p class="text-sm text-muted">This request was not approved.</p>
         <% } else { %>
           <p class="text-sm text-muted">Closed tickets can't change status.</p>
         <% } %>
@@ -264,14 +275,14 @@
         <div class="px-5 py-3">
           <div class="flex justify-between gap-4 text-sm">
             <span class="text-ink-soft"><%= row[0] %></span>
-            <span class="font-medium tabular-nums <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink', met: 'text-ok' }[c.state] %>">
-              <% if (c.running) { %><%= c.state === 'breached' ? duration(c.remainingHours) + ' over' : duration(c.remainingHours) + ' left' %><% } else { %><%= c.state === 'met' ? 'Met' : 'Missed' %><% } %>
+            <span class="font-medium tabular-nums <%= { breached: 'text-danger', at_risk: 'text-caution', ok: 'text-ink', met: 'text-ok', waiting: 'text-muted' }[c.state] %>">
+              <% if (c.state === 'waiting') { %>Not started<% } else if (c.running) { %><%= c.state === 'breached' ? duration(c.remainingHours) + ' over' : duration(c.remainingHours) + ' left' %><% } else { %><%= c.state === 'met' ? 'Met' : 'Missed' %><% } %>
             </span>
           </div>
           <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken" role="img" aria-label="<%= pct %>% of the <%= c.targetHours %> hour target used">
             <span class="block h-full rounded-full <%= { breached: 'bg-danger', at_risk: 'bg-caution', ok: 'bg-brand', met: 'bg-ok' }[c.state] %>" style="width: <%= pct %>%"></span>
           </div>
-          <p class="mt-1 text-xs text-muted">Target <%= duration(c.targetHours) %></p>
+          <p class="mt-1 text-xs text-muted">Target <%= duration(c.targetHours) %><%= c.state === 'waiting' ? ', starts when approved' : '' %></p>
         </div>
       <% }) %>
       <% var tis = Object.keys(timeInStatus).filter(function(s) { return timeInStatus[s] > 0; }); %>

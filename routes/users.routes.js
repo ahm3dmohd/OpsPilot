@@ -5,6 +5,7 @@ const { requireRole, asyncHandler } = require('../middleware/auth');
 const { ROLES } = require('../lib/constants');
 const { changeRole } = require('../lib/roles');
 const org = require('../lib/org');
+const approvals = require('../lib/approvals');
 const { logAction } = require('../lib/activity');
 
 // ---- User & role management (admins only, mounted at /admin) ----
@@ -74,7 +75,29 @@ router.post('/departments/:code/head', requireRole('admin'), asyncHandler(async 
   if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
   if (result.reason) return res.redirect(`/admin/departments?msg=${result.reason}`);
   await logAction(req.session.user, 'department.head', { code: result.dept.code, from: result.before, to: result.dept.headEmail });
+  // Approval steps that were waiting for this department to have a head.
+  const assigned = await approvals.assignHeadSteps(result.dept.code, result.dept.headEmail, req.session.user);
+  if (assigned) await logAction(req.session.user, 'approval.assign_head', { code: result.dept.code, steps: assigned });
   res.redirect('/admin/departments?msg=head_changed');
+}));
+
+// ---- Open approval steps: reassign when an approver changed or left ----
+router.get('/approvals', requireRole('admin'), asyncHandler(async (req, res) => {
+  const [steps, users] = await Promise.all([approvals.openSteps(), store.listUsers()]);
+  res.render('admin-approvals', {
+    steps, users, KIND_LABELS: approvals.KIND_LABELS,
+    flash: req.query.msg ? String(req.query.msg) : null,
+  });
+}));
+
+router.post('/approvals/:id/reassign', requireRole('admin'), asyncHandler(async (req, res) => {
+  const result = await approvals.reassign(String(req.params.id), req.session.user, req.body.approverEmail);
+  if (result.reason === 'not_found') return res.status(404).render('404', { url: req.originalUrl });
+  if (result.reason) return res.redirect(`/admin/approvals?msg=${result.reason}`);
+  await logAction(req.session.user, 'approval.reassign', {
+    ticketId: result.step.ticketId, step: result.step.order, from: result.from, to: result.step.approverEmail,
+  });
+  res.redirect('/admin/approvals?msg=reassigned');
 }));
 
 module.exports = router;
