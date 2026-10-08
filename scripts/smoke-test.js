@@ -86,6 +86,21 @@ async function waitForServer(proc) {
   });
 }
 
+// Logic that can't be reached over HTTP on its own, run against a separate
+// in-memory store inside this process (the server above is untouched).
+async function unitChecks() {
+  console.log('\nUnit checks (in-process mock store)');
+  const store = require('../lib/store');
+  const { changeRole } = require('../lib/roles');
+  store.useMockData();
+  // Only an admin can reach changeRole through the app, and they can't
+  // change themselves, so "last admin" only happens when two admins demote
+  // each other at once. Call it directly with another actor to cover it.
+  const r = await changeRole({ email: 'manager@opspilot.test' }, 'admin@opspilot.test', 'agent');
+  check('the last admin cannot be demoted', r.reason === 'last_admin');
+  check('...and is still an admin', (await store.findUserByEmail('admin@opspilot.test')).role === 'admin');
+}
+
 async function main() {
   const dbUri = process.env.TEST_MONGODB_URI || '';
   if (dbUri) {
@@ -108,6 +123,7 @@ async function main() {
     const agent = client();
     const agent2 = client();
     const manager = client();
+    const admin = client();
 
     console.log('Styles');
     let r = await anon.get('/css/app.css');
@@ -123,7 +139,7 @@ async function main() {
     check('logged-out user is sent to /login', r.status === 302 && r.location === '/login');
     r = await anon.post('/login', { email: 'agent@opspilot.test', password: 'wrong' });
     check('wrong password is rejected (401)', r.status === 401);
-    for (const [c, email] of [[endUser, 'enduser'], [agent, 'agent'], [agent2, 'agent2'], [manager, 'manager']]) {
+    for (const [c, email] of [[endUser, 'enduser'], [agent, 'agent'], [agent2, 'agent2'], [manager, 'manager'], [admin, 'admin']]) {
       r = await c.login(`${email}@opspilot.test`);
       check(`${email} can log in`, r.status === 302 && r.location === '/dashboard');
     }
@@ -175,6 +191,11 @@ async function main() {
       [endUser, 'GET', '/admin/duplicate-stats', 'end user -> duplicate stats'],
       [agent, 'GET', '/admin/duplicate-stats', 'agent -> duplicate stats'],
       [agent, 'GET', '/admin/duplicate-stats.csv', 'agent -> duplicate decisions CSV'],
+      [endUser, 'GET', '/admin/users', 'end user -> user management'],
+      [agent, 'GET', '/admin/users', 'agent -> user management'],
+      [manager, 'GET', '/admin/users', 'manager -> user management'],
+      [manager, 'POST', '/admin/users/role', 'manager -> change a role'],
+      [agent, 'POST', '/admin/users/role', 'agent -> change a role'],
       [endUser, 'GET', '/canned', 'end user -> canned responses'],
       [endUser, 'POST', '/canned', 'end user -> create canned response'],
       [endUser, 'GET', '/canned/1/edit', 'end user -> edit canned response form'],
@@ -451,11 +472,52 @@ async function main() {
     r = await manager.post(`/canned/${cannedId}/delete`);
     check('deleting it again is a 404', r.status === 404);
 
+    console.log('\nAdmin: users and roles');
+    r = await admin.get('/admin/users');
+    check('admin sees every user with a role dropdown', r.status === 200 && r.text.includes('data-user="agent2@opspilot.test"') && r.text.includes('name="role"'));
+    check('admin has no dropdown for their own row', !/data-user="admin@opspilot.test"[\s\S]*?<\/tr>/.exec(r.text)[0].includes('name="role"'));
+    r = await admin.get('/dashboard');
+    check('admin gets the manager dashboard', r.text.includes('SLA watch'));
+    r = await admin.get('/audit');
+    check('admin can open manager pages (audit log)', r.status === 200);
+    r = await admin.post('/admin/users/role', { email: 'admin@opspilot.test', role: 'agent' });
+    check('admin cannot change their own role', r.location.includes('msg=self'));
+    r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'superuser' });
+    check('unknown role is rejected (400)', r.status === 400);
+    r = await admin.post('/admin/users/role', { email: 'nobody@opspilot.test', role: 'agent' });
+    check('unknown user is a 404', r.status === 404);
+    r = await agent2.get('/tickets');
+    check('agent2 can see the ticket list before', r.status === 200);
+    r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'end_user' });
+    check('admin demotes agent2 to end user', r.location.includes('msg=role_changed'));
+    r = await agent2.get('/tickets');
+    check('...which takes effect on agent2\'s next request, without logging out', r.status === 403);
+    r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'end_user' });
+    check('setting the same role again is reported, not logged', r.location.includes('msg=unchanged'));
+    r = await admin.post('/admin/users/role', { email: 'manager@opspilot.test', role: 'admin' });
+    check('admin promotes the manager to admin', r.location.includes('msg=role_changed'));
+    r = await manager.get('/admin/users');
+    check('the new admin can open user management', r.status === 200);
+    r = await manager.post('/admin/users/role', { email: 'admin@opspilot.test', role: 'manager' });
+    check('with two admins, one can demote the other', r.location.includes('msg=role_changed'));
+    r = await admin.get('/admin/users');
+    check('the demoted admin loses access straight away', r.status === 403);
+    r = await manager.post('/admin/users/role', { email: 'manager@opspilot.test', role: 'manager' });
+    check('the last admin cannot demote themselves', r.location.includes('msg=self'));
+    // Restore the starting roles for the rest of the test.
+    await manager.post('/admin/users/role', { email: 'admin@opspilot.test', role: 'admin' });
+    r = await admin.post('/admin/users/role', { email: 'manager@opspilot.test', role: 'manager' });
+    check('roles restored', r.location.includes('msg=role_changed'));
+    r = await admin.post('/admin/users/role', { email: 'agent2@opspilot.test', role: 'agent' });
+    r = await agent2.get('/tickets');
+    check('agent2 is an agent again', r.status === 200);
+
     console.log('\nAudit log + help assistant');
     r = await manager.get('/audit');
     check('audit log lists actions', r.status === 200 && ['ticket.create', 'ticket.claim', 'ticket.status', 'ticket.comment', 'kb.create', 'kb.delete', 'report.export'].every((a) => r.text.includes(a)));
     check('audit hash chain verifies', r.text.includes('Hash chain intact'));
     check('audit logs duplicate decisions', r.text.includes('duplicate.confirm') && r.text.includes('duplicate.reject'));
+    check('audit logs role changes with old and new role', r.text.includes('user.role') && r.text.includes('&#34;from&#34;:&#34;agent&#34;,&#34;to&#34;:&#34;end_user&#34;'));
     check('audit logs canned response changes', ['canned.create', 'canned.update', 'canned.delete'].every((a) => r.text.includes(a)));
     check('audit logs that a note was added, not what it says', r.text.includes('ticket.note') && !r.text.includes(NOTE_SECRET));
     const help = await endUser.json('/help/ask', { question: 'I forgot my password' });
@@ -470,6 +532,7 @@ async function main() {
   } finally {
     proc.kill();
   }
+  await unitChecks();
   console.log(`\n${passes} passed, ${failures} failed`);
   process.exit(failures ? 1 : 0);
 }

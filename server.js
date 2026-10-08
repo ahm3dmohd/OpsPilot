@@ -13,6 +13,7 @@ const embeddings = require('./lib/embeddings');
 const { detectDuplicates, ensureEmbeddings } = require('./lib/duplicates');
 const { DEMO_USERS, DEMO_PASSWORD } = require('./lib/seedData');
 const viewHelpers = require('./lib/viewHelpers');
+const { hasManagerRights } = require('./lib/constants');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,7 +58,23 @@ app.use(
 // Make the logged-in user available to every view without passing it
 // explicitly from each route.
 app.use(async (req, res, next) => {
+  // Re-read the role on every request, so a role change by an admin takes
+  // effect on the user's next click, not at their next login. A user who
+  // no longer exists is logged out.
+  if (req.session.user && store.getMode()) {
+    try {
+      const fresh = await store.findUserByEmail(req.session.user.email);
+      if (!fresh) {
+        delete req.session.user;
+      } else if (fresh.role !== req.session.user.role || fresh.name !== req.session.user.name) {
+        req.session.user = { ...req.session.user, role: fresh.role, name: fresh.name };
+      }
+    } catch (err) {
+      console.error('Session refresh failed:', err.message);
+    }
+  }
   res.locals.currentUser = req.session.user || null;
+  res.locals.managerRights = hasManagerRights(req.session.user);
   res.locals.currentPath = req.path;
   res.locals.unreadCount = 0;
   // Unread badge for the nav bar. A failure here (e.g. DB hiccup) just
@@ -133,6 +150,7 @@ app.use('/tickets', require('./routes/tickets.routes'));
 app.use('/kb', require('./routes/kb.routes'));
 app.use('/notifications', require('./routes/notifications.routes'));
 app.use('/canned', require('./routes/canned.routes'));
+app.use('/admin', require('./routes/users.routes'));
 
 // ---- 404 ----
 app.use((req, res) => {

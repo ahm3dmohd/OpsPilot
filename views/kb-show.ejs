@@ -30,7 +30,7 @@
   <% if (staff) { %>
     <div class="mt-6 flex flex-wrap items-center gap-3">
       <a href="/kb/<%= article.articleId %>/edit" class="btn-secondary"><%- icon('pencil') %> Edit</a>
-      <% if (currentUser.role === 'manager') { %>
+      <% if (managerRights) { %>
         <form action="/kb/<%= article.articleId %>/delete" method="POST" onsubmit="return confirm('Delete this article? This cannot be undone.');">
           <button type="submit" class="btn-danger"><%- icon('trash-2') %> Delete</button>
         </form>

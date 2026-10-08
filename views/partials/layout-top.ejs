@@ -34,12 +34,16 @@
           <%- icon('bell') %> Notifications
           <% if (unreadCount) { %><span class="ml-auto rounded-full bg-danger px-1.5 text-xs font-semibold text-white notif-count"><%= unreadCount %></span><% } %>
         </a>
-        <% if (currentUser.role === 'manager') { %>
+        <% if (managerRights) { %>
           <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Reports</p>
           <a href="/evaluation" class="nav-link" <%- on('/evaluation') %>><%- icon('flask-conical') %> AI evaluation</a>
           <a href="/admin/duplicate-stats" class="nav-link" <%- on('/admin/duplicate-stats') %>><%- icon('git-compare') %> Duplicate decisions</a>
           <a href="/audit" class="nav-link" <%- on('/audit') %>><%- icon('shield-check') %> Audit log</a>
           <a href="/reports/tickets.csv" class="nav-link"><%- icon('download') %> Export CSV</a>
+        <% } %>
+        <% if (currentUser.role === 'admin') { %>
+          <p class="mt-5 mb-1 px-3 text-xs font-medium text-muted">Administration</p>
+          <a href="/admin/users" class="nav-link" <%- on('/admin/users') %>><%- icon('users') %> Users &amp; roles</a>
         <% } %>
       </nav>
 

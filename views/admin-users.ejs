@@ -1,0 +1,43 @@
+<%- include('partials/layout-top', { title: 'Users & roles' }) %>
+<% var errors = {
+     self: "You can't change your own role. Ask another admin.",
+     last_admin: "That's the last admin. Make someone else an admin first.",
+     unchanged: 'That user already has that role.'
+   };
+   var target = users.find(function(u) { return u.email === who; }); %>
+
+<h1>Users &amp; roles</h1>
+<p class="mt-1 max-w-3xl text-sm text-muted">Change what each person can do. Changes take effect on their next page load. Every change is recorded in the audit log.</p>
+
+<% if (flash === 'role_changed' && target) { %><p class="notice-ok mt-4" role="status"><%= target.name %> is now <%= roleLabel(target.role) %>.</p><% } %>
+<% if (flash && errors[flash]) { %><p class="notice-error mt-4" role="alert"><%= errors[flash] %></p><% } %>
+
+<section class="panel mt-6 overflow-x-auto">
+  <table class="data-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+    <tbody>
+      <% users.forEach(function(u) { var self = u.email === currentUser.email; %>
+        <tr data-user="<%= u.email %>">
+          <td class="font-medium"><%= u.name %><% if (self) { %> <span class="text-xs text-muted">(you)</span><% } %></td>
+          <td class="text-ink-soft"><%= u.email %></td>
+          <td>
+            <% if (self) { %>
+              <span class="pill-role"><%= roleLabel(u.role) %></span>
+            <% } else { %>
+              <form action="/admin/users/role" method="POST" class="flex items-center gap-2">
+                <input type="hidden" name="email" value="<%= u.email %>" />
+                <label class="sr-only" for="role-<%= u.email %>">Role for <%= u.name %></label>
+                <select class="input w-auto py-1.5" id="role-<%= u.email %>" name="role">
+                  <% ROLES.forEach(function(r) { %><option value="<%= r %>" <%= u.role === r ? 'selected' : '' %>><%= roleLabel(r) %></option><% }) %>
+                </select>
+                <button type="submit" class="btn-secondary btn-sm">Save</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('partials/layout-bottom') %>

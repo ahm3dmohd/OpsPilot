@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, requireRole, asyncHandler } = require('../middleware/auth');
-const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, canTransition } = require('../lib/constants');
+const { STATUSES, PRIORITIES, CATEGORIES, STATUS_TRANSITIONS, canTransition, hasManagerRights } = require('../lib/constants');
 const { detectDuplicates } = require('../lib/duplicates');
 const { suggestCategory, suggestAssignee, agentWorkloads } = require('../lib/categorize');
 const { slaFor, timeInStatus } = require('../lib/sla');
@@ -17,7 +17,7 @@ const MAX_DESCRIPTION = 5000;
 const MAX_COMMENT = 5000;
 const MAX_NOTE = 5000;
 
-const isStaff = (user) => user.role === 'agent' || user.role === 'manager';
+const isStaff = (user) => user.role === 'agent' || hasManagerRights(user);
 
 function canView(ticket, user) {
   return isStaff(user) || ticket.requesterEmail === user.email;
@@ -169,7 +169,7 @@ router.get('/:id', requireLogin, asyncHandler(async (req, res) => {
     mergedChildren: staff ? await store.listTickets({ mergedInto: ticket.ticketId }) : [],
     cannedResponses: staff ? await store.listCannedResponses() : [],
     suggestedAssignee: staff && !ticket.assigneeEmail ? await suggestAssignee() : null,
-    agents: user.role === 'manager' && !ticket.assigneeEmail ? await agentWorkloads() : [],
+    agents: hasManagerRights(user) && !ticket.assigneeEmail ? await agentWorkloads() : [],
     flash: req.query.msg ? String(req.query.msg) : null,
     mergedFrom: /^T-\d+$/.test(String(req.query.from || '')) ? String(req.query.from) : null,
   });

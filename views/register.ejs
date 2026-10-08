@@ -21,7 +21,7 @@
         <% if (roles.length > 1) { %>
           <label class="field">Role
             <select class="input" name="role" required>
-              <% roles.forEach(function(r) { %><option value="<%= r %>"><%= { end_user: 'End user', agent: 'Agent', manager: 'Manager' }[r] %></option><% }) %>
+              <% roles.forEach(function(r) { %><option value="<%= r %>"><%= roleLabel(r) %></option><% }) %>
             </select>
             <span class="hint">Shown because ALLOW_ROLE_SELECT_ON_REGISTER=true (demo only). Real staff accounts are set up by IT.</span>
           </label>

@@ -17,7 +17,7 @@
               <h2 class="text-base"><%= r.title %></h2>
               <div class="flex gap-2">
                 <a href="/canned/<%= r.id %>/edit" class="btn-secondary btn-sm"><%- icon('pencil', 'size-3.5') %> Edit</a>
-                <% if (currentUser.role === 'manager') { %>
+                <% if (managerRights) { %>
                   <form action="/canned/<%= r.id %>/delete" method="POST" data-confirm="Delete this canned response?">
                     <button type="submit" class="btn-danger btn-sm"><%- icon('trash-2', 'size-3.5') %> Delete</button>
                   </form>

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../lib/store');
 const { requireLogin, asyncHandler } = require('../middleware/auth');
-const { STATUSES, PRIORITIES, CATEGORIES } = require('../lib/constants');
+const { STATUSES, PRIORITIES, CATEGORIES, hasManagerRights } = require('../lib/constants');
 const { withSla, applyFilters, stat } = require('../lib/ticketFilters');
 
 const SLA_ORDER = { breached: 0, at_risk: 1, ok: 2, met: 3 };
@@ -26,7 +26,7 @@ router.get('/dashboard', requireLogin, asyncHandler(async (req, res) => {
     return res.render('dashboard-agent', { queue, mine });
   }
 
-  if (user.role === 'manager') {
+  if (hasManagerRights(user)) {
     const all = withSla(await store.listTickets({}));
     // Every number on the dashboard is { count, href }: the count is the
     // length of exactly the list its link opens (see lib/ticketFilters.js).

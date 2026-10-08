@@ -9,7 +9,9 @@ const { logAction } = require('../lib/activity');
 // make themselves a manager. Set ALLOW_ROLE_SELECT_ON_REGISTER=true to
 // bring back the role picker for demos.
 function selectableRoles() {
-  return process.env.ALLOW_ROLE_SELECT_ON_REGISTER === 'true' ? ROLES : ['end_user'];
+  // Never admin, even in demo mode: admins are made by another admin or
+  // with `npm run make-admin`.
+  return process.env.ALLOW_ROLE_SELECT_ON_REGISTER === 'true' ? ROLES.filter((r) => r !== 'admin') : ['end_user'];
 }
 
 // Swap in a fresh session ID on login/sign-up, so a session ID planted

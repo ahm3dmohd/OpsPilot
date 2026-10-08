@@ -21,6 +21,7 @@ npm test             end-to-end smoke test (starts its own server, mock mode)
 npm run evaluate     AI-vs-baseline evaluation -> docs/evaluation-results.md
 npm run build:css    rebuild Tailwind CSS (watch:css while editing)
 npm run seed         WIPES and re-seeds MongoDB (needs MONGODB_URI)
+npm run make-admin -- <email>   promote an existing user to admin
 TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode (wipes that DB)
 ```
 
@@ -45,6 +46,10 @@ TEST_MONGODB_URI=mongodb://localhost:27017/opspilot_test npm test   real-DB mode
 - Confirm = merge NEWER into OLDER; the merged ticket's comments are copied
   to the primary as a staff-only internal note (requesters differ). The
   decision stats are precision only, never call them recall/accuracy.
+- Roles: end_user, agent, manager (= service-desk manager), admin. Admin has
+  every manager right (requireRole('manager') also admits admin; views use
+  `managerRights`). Line managers and department heads are ORG LINKS, not
+  roles. Role is re-read from the DB on every request (server.js).
 - Help assistant is retrieval only (returns written KB articles, no generated
   text). End users never see other users' tickets or duplicate results.
 - UI: Tailwind v4, compiled (not CDN). Semantic colour tokens + dark mode in

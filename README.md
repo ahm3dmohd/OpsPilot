@@ -26,6 +26,7 @@ memory and are re-seeded on every start.
 | `agent@opspilot.test` | Agent (Adel Haddad) |
 | `agent2@opspilot.test` | Agent (Sara Ali) |
 | `manager@opspilot.test` | Manager |
+| `admin@opspilot.test` | Admin (manager rights + user management) |
 
 To turn on the AI features and/or real persistence, `cp .env.example .env`
 and fill in what you need. Every setting is explained in `.env.example`.
@@ -91,6 +92,8 @@ hanging).
 
 ## Roles and access
 
+Admins (new) can do everything a manager can, plus the rows marked admin.
+
 | | End User | Agent | Manager |
 |---|---|---|---|
 | Submit tickets | ✅ | ❌ 403 | ❌ 403 (by design) |
@@ -107,6 +110,7 @@ hanging).
 | Delete KB articles | ❌ | ❌ | ✅ |
 | Use / write / edit canned responses | ❌ | ✅ | ✅ |
 | Delete canned responses | ❌ | ❌ | ✅ |
+| Change users' roles (`/admin/users`) | ❌ | ❌ | ❌ admin only |
 | Notifications | own | own | own |
 | Filtered ticket list (`/tickets`) | ❌ | ✅ | ✅ |
 | CSV export, AI evaluation page, duplicate-decision stats, audit log | ❌ | ❌ | ✅ |
@@ -268,6 +272,15 @@ as the seed tickets.
 
   You're never notified about your own actions. A failed notification
   never undoes the action that triggered it.
+- **User & role management** (`/admin/users`, admins only): a role
+  dropdown per user. Enforced in the route (`requireRole('admin')`) and in
+  `lib/roles.js`: nobody can change their own role, and the last admin
+  can't be demoted (re-checked after the write, in case two admins demote
+  each other at once). The role is re-read from the database on every
+  request, so a change applies on the user's next click. Every change is
+  a `user.role` entry in the audit log (who, whom, old and new role, when).
+  For a database seeded before admins existed, `npm run make-admin --
+  <email>` promotes an existing user.
 - **Internal notes**: a yellow, lock-labelled panel on the ticket page for
   staff-only notes. They live in their own collection (`InternalNote`),
   not inside the ticket, and the ticket route only loads them for agents
@@ -346,6 +359,7 @@ routes/
   kb.routes.js             knowledge base: list/search, view, vote, create/edit/delete
   notifications.routes.js  notification list, open, mark all read
   canned.routes.js         canned responses: list, create, edit, delete
+  users.routes.js          admin: users and roles (mounted at /admin)
   (tickets.routes.js also serves the filtered list at GET /tickets)
 middleware/auth.js       requireLogin / requireRole guards, asyncHandler
 models/                  Mongoose schemas: User, Ticket, Article, Notification, Counter, AuditLog, InternalNote, DuplicateDecision, CannedResponse
@@ -357,6 +371,7 @@ lib/
   similarity.js            cosine, tokenizer, stemmer, Jaccard (hand-written)
   duplicates.js            the two duplicate-detection methods
   duplicateDecisions.js    confirm (merge) / reject a suggested pair, decision stats
+  roles.js                 role changes with the self / last-admin safeguards
   categorize.js            category suggestion + workload-based assignee
   sla.js                   SLA targets, at-risk rule, time in status
   assistant.js             help assistant retrieval
@@ -373,6 +388,7 @@ data/
   kb.json                  10 starter knowledge-base articles (seeded into the KB)
 scripts/
   seed.js                  wipe + seed MongoDB
+  make-admin.js            npm run make-admin -- <email>
   smoke-test.js            npm test
   evaluate.js              npm run evaluate
 docs/evaluation-results.md latest evaluation output

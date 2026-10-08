@@ -5,12 +5,15 @@ function requireLogin(req, res, next) {
   next();
 }
 
+// Admins can do everything a manager can, so any route open to 'manager'
+// is open to 'admin' too. Routes only for admins use requireRole('admin').
 function requireRole(...roles) {
+  const allowed = roles.includes('manager') ? [...roles, 'admin'] : roles;
   return (req, res, next) => {
     if (!req.session.user) {
       return res.redirect('/login');
     }
-    if (!roles.includes(req.session.user.role)) {
+    if (!allowed.includes(req.session.user.role)) {
       return res.status(403).render('403', { title: 'Access denied' });
     }
     next();
